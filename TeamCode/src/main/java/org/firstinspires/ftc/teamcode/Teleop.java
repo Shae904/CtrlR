@@ -61,8 +61,12 @@ public class Teleop extends LinearOpMode{
                 telemetry.addData("intake", "intake");
             }
             else if(gamepad1.y){
-                robot.cycle();
+                robot.cycleCW();
                 telemetry.addData("cycle", "cycle");
+            }
+            else if(gamepad1.b){
+                robot.cycleCCW();
+                telemetry.addData("ccw cycle", "ccw cycle");
             }
         }
     }
