@@ -1,7 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-
-
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -17,6 +15,8 @@ public class Robot {
 
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
+    //public final DcMotor intake;
+    //public final DcMotor cycle;
 
     private final LinearOpMode opMode;
     public Robot(LinearOpMode opMode) {
@@ -69,7 +69,10 @@ public class Robot {
     public void intake(){
 
     }
-    public void cycle(){
+    public void cycleCW(){
+
+    }
+    public void cycleCCW(){
 
     }
 }
