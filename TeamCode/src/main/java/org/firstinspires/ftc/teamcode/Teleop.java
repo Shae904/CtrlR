@@ -47,10 +47,7 @@ public class Teleop extends LinearOpMode{
                 backRightPower *= 0.4;
             }
 
-            robot.fl.setPower(frontLeftPower);
-            robot.bl.setPower(backLeftPower);
-            robot.fr.setPower(frontRightPower);
-            robot.br.setPower(backRightPower);
+            robot.setDriveTrainPower(frontLeftPower,backLeftPower,frontRightPower,backRightPower);
 
             if(gamepad1.a){
                 robot.shoot();
