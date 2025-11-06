@@ -18,13 +18,9 @@ public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
     public final DcMotor intake;
-    public final DcMotor transfer;
     public final Servo cycle;
     private final Outtake out;
     private final double intakePower = 0.5;
-
-
-
     private final LinearOpMode opMode;
     public Robot(LinearOpMode opMode) {
         this.opMode = opMode;
@@ -61,12 +57,15 @@ public class Robot {
         imu.resetYaw();
 
         // Initializing other motors
+
         intake = hardwareMap.dcMotor.get("intake");
-        transfer = hardwareMap.dcMotor.get("transfer");
+
         cycle =  hardwareMap.get(Servo.class,"cycle");
 
+        intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-        transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+
+
 
     }
 
@@ -86,6 +85,10 @@ public class Robot {
     public void intake(){
 
     }
+    public void outtake(){
+        //out.outtake();
+    }
+
     public void cycleCW(){
         double pos = cycle.getPosition();
         if(pos >= 2/3.0){
