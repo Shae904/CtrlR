@@ -1,19 +1,22 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
-import com.qualcomm.robotcore.util.Range;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name = "Teleop")
-public class Teleop extends LinearOpMode{
+public class RedTeleop extends LinearOpMode{
 
     Robot robot;
+    Limelight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         waitForStart();
+        limelight = robot.getLimelight();
+        limelight.start();
         // START
 
         // LOOP
@@ -50,23 +53,34 @@ public class Teleop extends LinearOpMode{
             robot.setDriveTrainPower(frontLeftPower,backLeftPower,frontRightPower,backRightPower);
 
             if(gamepad1.a){
-                robot.shoot();
-                telemetry.addData("shoot", "shoot");
+                robot.outtake('r');
             }
-            else if(gamepad1.x){
-                robot.intake();
-                telemetry.addData("intake", "intake");
-            }
-            else if(gamepad1.y){
+            if(gamepad1.y){
                 robot.cycleCW();
-                telemetry.addData("cycle", "cycle");
             }
-            else if(gamepad1.b){
+            if(gamepad1.b){
                 robot.cycleCCW();
-                telemetry.addData("ccw cycle", "ccw cycle");
             }
-            else if(gamepad1.right_bumper){
-                robot.outtake();
+            if(gamepad1.dpad_down){
+                robot.setHood(0);
+            }
+            else if(gamepad1.dpad_left){
+                robot.setHood(0.25);
+            }
+            else if(gamepad1.dpad_right){
+                robot.setHood(0.5);
+            }
+            else if(gamepad1.dpad_up){
+                robot.setHood(0.75);
+            }
+            else if(gamepad1.left_bumper){
+                robot.setHood(1);
+            }
+            if(gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0){
+                robot.setIntakePower(gamepad1.right_trigger - gamepad1.left_trigger);
+            }
+            else{
+                robot.setIntakePower(0);
             }
         }
     }
