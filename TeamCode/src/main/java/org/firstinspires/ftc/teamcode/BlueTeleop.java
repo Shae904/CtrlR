@@ -55,6 +55,9 @@ public class BlueTeleop extends LinearOpMode{
             if(gamepad1.a){
                 robot.outtake('b');
             }
+            else{
+                robot.stopOuttake();
+            }
             if(gamepad1.y){
                 robot.cycleCW();
             }

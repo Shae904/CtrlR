@@ -55,11 +55,14 @@ public class RedTeleop extends LinearOpMode{
             if(gamepad1.a){
                 robot.outtake('r');
             }
+            else{
+                robot.stopOuttake();
+            }
 
             if(gamepad1.y){
                 robot.cycleCW();
             }
-            else if(gamepad1.b){
+            else if(gamepad1.b) {
                 robot.cycleCCW();
             }
 

@@ -165,12 +165,42 @@ public class Robot {
         transfer.setPower(transferPower);
         launch.setPower(launchPower);
     }
+    public void stopOuttake(){
+        cycleCW();
+        transfer.setPower(0);
+        launch.setPower(0);
+    }
     public void cycleCW(){
         var += 1;
         if(var >= 3){
             var = 0;
         }
         cycle.setPosition(cyclePos[var]);
+    }
+    public void setFL(){
+        fl.setPower(1);
+    }
+    public void setFR(){
+        fr.setPower(1);
+    }
+    public void setBL(){
+        bl.setPower(1);
+    }
+    public void setBR(){
+        br.setPower(1);
+    }
+
+    public void unsetFL(){
+        fl.setPower(0);
+    }
+    public void unsetFR(){
+        fr.setPower(0);
+    }
+    public void unsetBL(){
+        bl.setPower(0);
+    }
+    public void unsetBR(){
+        br.setPower(0);
     }
     public void cycleCCW(){
         var -= 1;
