@@ -10,13 +10,13 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class BlueTeleop extends LinearOpMode{
 
     Robot robot;
-    Limelight3A limelight;
+    //LimeLight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         waitForStart();
-        limelight = robot.getLimelight();
-        limelight.start();
+        //limelight = robot.getLimelight();
+        //limelight.start();
         // START
 
         // LOOP

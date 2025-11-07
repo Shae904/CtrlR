@@ -10,13 +10,13 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class RedTeleop extends LinearOpMode{
 
     Robot robot;
-    Limelight3A limelight;
+    //Limelight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         waitForStart();
-        limelight = robot.getLimelight();
-        limelight.start();
+        //limelight = robot.getLimelight();
+        //limelight.start();
         // START
 
         // LOOP
@@ -55,12 +55,14 @@ public class RedTeleop extends LinearOpMode{
             if(gamepad1.a){
                 robot.outtake('r');
             }
+
             if(gamepad1.y){
                 robot.cycleCW();
             }
-            if(gamepad1.b){
+            else if(gamepad1.b){
                 robot.cycleCCW();
             }
+
             if(gamepad1.dpad_down){
                 robot.setHood(0);
             }

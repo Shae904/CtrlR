@@ -22,17 +22,18 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
-    public final DcMotorEx intake,transfer,launch;
+    public final DcMotor intake,transfer,launch;
     public final Servo cycle;
     private final LinearOpMode opMode;
     private final double[] cyclePos = new double[3];
+    private final double[] shootPos = new double[3];
     private int var = 0;
-    private Limelight3A limelight;
+    //private final Limelight3A limelight;
     public final Servo hood;
-    private final double launchVelo = 14000;
-    private final double transferVelo = 10000;
+    private final double launchPower = 0.9;
+    private final double transferPower = 0.7;
     public Robot(LinearOpMode opMode) {
-        // TODO
+        //TODO
         // Set bounds for hood and cycle servos
         this.opMode = opMode;
         HardwareMap hardwareMap = opMode.hardwareMap;
@@ -68,7 +69,7 @@ public class Robot {
 
         // Initializing other motors
 
-        intake = hardwareMap.get(DcMotorEx.class,"intake");
+        intake=hardwareMap.dcMotor.get("intake");
 
         cycle =  hardwareMap.get(Servo.class,"cycle");
 
@@ -79,13 +80,17 @@ public class Robot {
         cyclePos[1] = 1/3.0;
         cyclePos[2] = 2/3.0;
 
+        shootPos[0] = 1/6.0;
+        shootPos[1] = 1/2.0;
+        shootPos[2] = 5/6.0;
+
         // Outtake config
 
-        launch = hardwareMap.get(DcMotorEx.class, "launch");
+        launch = hardwareMap.get(DcMotor.class, "launch");
         launch.setMode(RunMode.RUN_USING_ENCODER);
         launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
-        transfer = hardwareMap.get(DcMotorEx.class, "transfer");
+        transfer = hardwareMap.get(DcMotor.class, "transfer");
         transfer.setMode(RunMode.RUN_USING_ENCODER);
         transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
@@ -93,14 +98,14 @@ public class Robot {
 
         // Limelight config
 
-        limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.setPollRateHz(100);
+        //limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        //limelight.setPollRateHz(100);
 
     }
 
-    public Limelight3A getLimelight() {
-        return limelight;
-    }
+    //public Limelight3A getLimelight() {
+        //return limelight;
+    //}
 
     public double getHeading() {
         return this.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
@@ -116,10 +121,10 @@ public class Robot {
         intake.setPower(intakePower);
     }
     //TODO
-    /*
-        Add distance to hood angle mapping
-     */
+    // Add distance to hood angle mapping
     public void outtake(char color){
+        // Commented out because we're not doing distance mapping for comp 1
+        /*
         double goalHeight = 30.0;
         double limelightHeight = 12.5;
         double angle = 0;
@@ -131,6 +136,7 @@ public class Robot {
         else{
             targetId = 20;
         }
+        cycle.setPosition(shootPos[var]);
         LLResult result = limelight.getLatestResult();
         List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
         for (LLResultTypes.FiducialResult fiducial : fiducials) {
@@ -140,12 +146,24 @@ public class Robot {
                 angle = Math.toRadians(y);
             }
         }
+        if(angle == 0){
+            transfer.setVelocity(transferVelo);
+            launch.setVelocity(launchVelo);
+        }
         distance = (goalHeight - limelightHeight) / Math.tan(angle);
+         */
 
         // Insert distance to hood conversion here
 
-        transfer.setVelocity(transferVelo);
-        launch.setVelocity(launchVelo);
+        cycle.setPosition(shootPos[var]);
+        transfer.setPower(transferPower);
+        launch.setPower(launchPower);
+    }
+    public void outtake(double hoodPos){
+        hood.setPosition(hoodPos);
+        cycle.setPosition(shootPos[var]);
+        transfer.setPower(transferPower);
+        launch.setPower(launchPower);
     }
     public void cycleCW(){
         var += 1;
