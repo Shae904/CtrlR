@@ -23,6 +23,7 @@ public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
     public final DcMotor intake,transfer,launch;
+
     public final Servo cycle;
     private final LinearOpMode opMode;
     private final double[] cyclePos = new double[3];
@@ -42,7 +43,6 @@ public class Robot {
         fr = hardwareMap.dcMotor.get("fr");
         bl = hardwareMap.dcMotor.get("bl");
         br = hardwareMap.dcMotor.get("br");
-
 
 
         fl.setMode(RunMode.RUN_WITHOUT_ENCODER);
@@ -69,7 +69,7 @@ public class Robot {
 
         // Initializing other motors
 
-        intake=hardwareMap.dcMotor.get("intake");
+        intake = hardwareMap.get(DcMotor.class, "intake");
 
         cycle =  hardwareMap.get(Servo.class,"cycle");
 
@@ -89,11 +89,12 @@ public class Robot {
         launch = hardwareMap.get(DcMotor.class, "launch");
         launch.setMode(RunMode.RUN_USING_ENCODER);
         launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+        launch.setDirection(Direction.REVERSE);
 
         transfer = hardwareMap.get(DcMotor.class, "transfer");
         transfer.setMode(RunMode.RUN_USING_ENCODER);
         transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
+        transfer.setDirection(Direction.FORWARD);
         hood = hardwareMap.get(Servo.class,"hood");
 
         // Limelight config
@@ -159,12 +160,7 @@ public class Robot {
         transfer.setPower(transferPower);
         launch.setPower(launchPower);
     }
-    public void outtake(double hoodPos){
-        hood.setPosition(hoodPos);
-        cycle.setPosition(shootPos[var]);
-        transfer.setPower(transferPower);
-        launch.setPower(launchPower);
-    }
+
     public void stopOuttake(){
         cycleCW();
         transfer.setPower(0);
