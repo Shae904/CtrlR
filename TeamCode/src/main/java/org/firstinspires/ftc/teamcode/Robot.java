@@ -19,6 +19,25 @@ import java.util.List;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
+/*
+Port Configs
+Control Hub
+Motors
+0 - fr
+1 - fl
+2 - br
+3 - bl
+Servos - none
+Expansion Hub
+Motors
+0 - empty
+1 - transfer
+2 - launch
+3 - intake
+Servos
+0 - hood
+4 - cycle
+ */
 public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
@@ -52,8 +71,8 @@ public class Robot {
 
         fl.setDirection(Direction.REVERSE);
         fr.setDirection(Direction.FORWARD);
-        bl.setDirection(Direction.REVERSE);
-        br.setDirection(Direction.FORWARD);
+        bl.setDirection(Direction.FORWARD);
+        br.setDirection(Direction.REVERSE);
 
         fl.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         fr.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
@@ -62,7 +81,7 @@ public class Robot {
 
         imu = hardwareMap.get(IMU.class, "imu");
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                LogoFacingDirection.RIGHT,
+                LogoFacingDirection.LEFT,
                 RevHubOrientationOnRobot.UsbFacingDirection.UP));
         imu.initialize(parameters);
         imu.resetYaw();
