@@ -19,10 +19,30 @@ import java.util.List;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
+/*
+Port Configs
+Control Hub
+Motors
+0 - fr
+1 - fl
+2 - br
+3 - bl
+Servos - none
+Expansion Hub
+Motors
+0 - empty
+1 - transfer
+2 - launch
+3 - intake
+Servos
+0 - hood
+4 - cycle
+ */
 public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
     public final DcMotor intake,transfer,launch;
+
     public final Servo cycle;
     private final LinearOpMode opMode;
     private final double[] cyclePos = new double[3];
@@ -44,7 +64,6 @@ public class Robot {
         br = hardwareMap.dcMotor.get("br");
 
 
-
         fl.setMode(RunMode.RUN_WITHOUT_ENCODER);
         fr.setMode(RunMode.RUN_WITHOUT_ENCODER);
         bl.setMode(RunMode.RUN_WITHOUT_ENCODER);
@@ -52,8 +71,8 @@ public class Robot {
 
         fl.setDirection(Direction.REVERSE);
         fr.setDirection(Direction.FORWARD);
-        bl.setDirection(Direction.REVERSE);
-        br.setDirection(Direction.FORWARD);
+        bl.setDirection(Direction.FORWARD);
+        br.setDirection(Direction.REVERSE);
 
         fl.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         fr.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
@@ -62,14 +81,14 @@ public class Robot {
 
         imu = hardwareMap.get(IMU.class, "imu");
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                LogoFacingDirection.RIGHT,
+                LogoFacingDirection.LEFT,
                 RevHubOrientationOnRobot.UsbFacingDirection.UP));
         imu.initialize(parameters);
         imu.resetYaw();
 
         // Initializing other motors
 
-        intake=hardwareMap.dcMotor.get("intake");
+        intake = hardwareMap.get(DcMotor.class, "intake");
 
         cycle =  hardwareMap.get(Servo.class,"cycle");
 
@@ -89,11 +108,12 @@ public class Robot {
         launch = hardwareMap.get(DcMotor.class, "launch");
         launch.setMode(RunMode.RUN_USING_ENCODER);
         launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+        launch.setDirection(Direction.REVERSE);
 
         transfer = hardwareMap.get(DcMotor.class, "transfer");
         transfer.setMode(RunMode.RUN_USING_ENCODER);
         transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
+        transfer.setDirection(Direction.FORWARD);
         hood = hardwareMap.get(Servo.class,"hood");
 
         // Limelight config
@@ -159,12 +179,7 @@ public class Robot {
         transfer.setPower(transferPower);
         launch.setPower(launchPower);
     }
-    public void outtake(double hoodPos){
-        hood.setPosition(hoodPos);
-        cycle.setPosition(shootPos[var]);
-        transfer.setPower(transferPower);
-        launch.setPower(launchPower);
-    }
+
     public void stopOuttake(){
         cycleCW();
         transfer.setPower(0);

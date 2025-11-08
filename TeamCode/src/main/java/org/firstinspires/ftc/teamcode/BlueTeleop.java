@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.teamcode.Robot;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
@@ -64,21 +65,21 @@ public class BlueTeleop extends LinearOpMode{
             if(gamepad1.b){
                 robot.cycleCCW();
             }
-            if(gamepad1.dpad_down){
-                robot.setHood(0);
-            }
-            else if(gamepad1.dpad_left){
-                robot.setHood(0.25);
-            }
-            else if(gamepad1.dpad_right){
-                robot.setHood(0.5);
-            }
-            else if(gamepad1.dpad_up){
-                robot.setHood(0.75);
-            }
-            else if(gamepad1.left_bumper){
-                robot.setHood(1);
-            }
+//            if(gamepad1.dpad_up){
+//                robot.setHood(0);
+//            }
+//            else if(gamepad1.dpad_down){
+//                robot.setHood(1);
+//            }
+//            else if(gamepad1.dpad_down){
+//                robot.setHood(-0.5);
+//            }
+//            else if(gamepad1.dpad_left){
+//                robot.setHood(-0.75);
+//            }
+//            else if(gamepad1.left_bumper){
+//                robot.setHood(-1);
+//            }
             if(gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0){
                 robot.setIntakePower(gamepad1.right_trigger - gamepad1.left_trigger);
             }

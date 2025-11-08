@@ -66,16 +66,16 @@ public class RedTeleop extends LinearOpMode{
                 robot.cycleCCW();
             }
 
-            if(gamepad1.dpad_down){
+            if(gamepad1.dpad_up){
                 robot.setHood(0);
             }
-            else if(gamepad1.dpad_left){
+            else if(gamepad1.dpad_right){
                 robot.setHood(0.25);
             }
-            else if(gamepad1.dpad_right){
+            else if(gamepad1.dpad_down){
                 robot.setHood(0.5);
             }
-            else if(gamepad1.dpad_up){
+            else if(gamepad1.dpad_left){
                 robot.setHood(0.75);
             }
             else if(gamepad1.left_bumper){
