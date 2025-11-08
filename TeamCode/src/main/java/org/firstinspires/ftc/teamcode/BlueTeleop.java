@@ -50,7 +50,7 @@ public class BlueTeleop extends LinearOpMode{
                 backRightPower *= 0.4;
             }
 
-            robot.setDriveTrainPower(frontLeftPower,backLeftPower,frontRightPower,backRightPower);
+            robot.setDriveTrainPower(frontRightPower,frontLeftPower,backRightPower,backLeftPower);
 
             if(gamepad1.a){
                 robot.outtake('b');
