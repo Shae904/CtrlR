@@ -49,7 +49,7 @@ public class Robot {
     private final double[] shootPos = new double[3];
     private int var = 0;
     //private final Limelight3A limelight;
-    public final Servo hood;
+//    public final Servo hood;
     private final double launchPower = 0.9;
     private final double transferPower = 0.7;
     public Robot(LinearOpMode opMode) {
@@ -114,7 +114,7 @@ public class Robot {
         transfer.setMode(RunMode.RUN_USING_ENCODER);
         transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         transfer.setDirection(Direction.FORWARD);
-        hood = hardwareMap.get(Servo.class,"hood");
+//        hood = hardwareMap.get(Servo.class,"hood");
 
         // Limelight config
 
@@ -175,7 +175,7 @@ public class Robot {
 
         // Insert distance to hood conversion here
 
-        cycle.setPosition(shootPos[var]);
+//        cycle.setPosition(shootPos[var]);
         transfer.setPower(transferPower);
         launch.setPower(launchPower);
     }
@@ -187,7 +187,7 @@ public class Robot {
     }
     public void cycleCW(){
         var += 1;
-        if(var >= 3){
+        if(var > 2){
             var = 0;
         }
         cycle.setPosition(cyclePos[var]);
@@ -219,12 +219,12 @@ public class Robot {
     }
     public void cycleCCW(){
         var -= 1;
-        if(var <= -1){
+        if(var < 0){
             var = 2;
         }
         cycle.setPosition(cyclePos[var]);
     }
-    public void setHood(double pos){
-        hood.setPosition(pos);
-    }
+//    public void setHood(double pos){
+//        hood.setPosition(pos);
+//    }
 }
