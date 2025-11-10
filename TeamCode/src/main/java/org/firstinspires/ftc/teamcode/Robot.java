@@ -69,8 +69,8 @@ public class Robot {
         bl.setMode(RunMode.RUN_WITHOUT_ENCODER);
         br.setMode(RunMode.RUN_WITHOUT_ENCODER);
 
-        fl.setDirection(Direction.REVERSE);
-        fr.setDirection(Direction.FORWARD);
+        fl.setDirection(Direction.FORWARD);
+        fr.setDirection(Direction.REVERSE);
         bl.setDirection(Direction.FORWARD);
         br.setDirection(Direction.REVERSE);
 

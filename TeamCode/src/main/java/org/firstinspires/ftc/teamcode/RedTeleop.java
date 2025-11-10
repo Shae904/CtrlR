@@ -50,7 +50,7 @@ public class RedTeleop extends LinearOpMode{
                 backRightPower *= 0.4;
             }
 
-            robot.setDriveTrainPower(frontRightPower,frontLeftPower,backRightPower,backLeftPower);
+            robot.setDriveTrainPower(frontLeftPower,frontRightPower,backLeftPower,backRightPower);
 
             if(gamepad1.a){
                 robot.outtake('r');
