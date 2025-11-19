@@ -15,6 +15,8 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.util.Range;
+
 import java.util.List;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -41,17 +43,15 @@ Servos
 public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
-    public final DcMotor intake,transfer,launch;
+    public final DcMotorEx intake,launch;
 
-    public final Servo cycle;
-    private final LinearOpMode opMode;
-    private final double[] cyclePos = new double[3];
-    private final double[] shootPos = new double[3];
+    public final Servo cycle,transfer;
+    public static LinearOpMode opMode;
+    public static  double[] cyclePos = new double[3];
+    public static double[] shootPos = new double[3];
     private int var = 0;
-    //private final Limelight3A limelight;
-    public final Servo hood;
-    private final double launchPower = 0.9;
-    private final double transferPower = 0.7;
+    private final Limelight3A limelight;
+    private final double transferPower = 0.9;
     public Robot(LinearOpMode opMode) {
         //TODO
         // Set bounds for hood and cycle servos
@@ -88,7 +88,7 @@ public class Robot {
 
         // Initializing other motors
 
-        intake = hardwareMap.get(DcMotor.class, "intake");
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
 
         cycle =  hardwareMap.get(Servo.class,"cycle");
 
@@ -105,27 +105,23 @@ public class Robot {
 
         // Outtake config
 
-        launch = hardwareMap.get(DcMotor.class, "launch");
+        launch = hardwareMap.get(DcMotorEx.class, "launch");
         launch.setMode(RunMode.RUN_USING_ENCODER);
         launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         launch.setDirection(Direction.REVERSE);
 
-        transfer = hardwareMap.get(DcMotor.class, "transfer");
-        transfer.setMode(RunMode.RUN_USING_ENCODER);
-        transfer.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-        transfer.setDirection(Direction.FORWARD);
-        hood = hardwareMap.get(Servo.class,"hood");
+        transfer = hardwareMap.get(Servo.class, "transfer");
 
         // Limelight config
 
-        //limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        //limelight.setPollRateHz(100);
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight.setPollRateHz(100);
 
     }
 
-    //public Limelight3A getLimelight() {
-        //return limelight;
-    //}
+    public Limelight3A getLimelight() {
+        return limelight;
+     }
 
     public double getHeading() {
         return this.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
@@ -143,12 +139,14 @@ public class Robot {
     //TODO
     // Add distance to hood angle mapping
     public void outtake(char color){
-        // Commented out because we're not doing distance mapping for comp 1
-        /*
-        double goalHeight = 30.0;
-        double limelightHeight = 12.5;
+
+        double Kv = 0.00039;
+        double Kp = 0.001;
+
+        double goalHeight = 29.5;
+        double limelightHeight = 10.5;
         double angle = 0;
-        double distance = 0;
+        double x = 0;
         int targetId = 0;
         if(color == 'r'){
             targetId = 24;
@@ -162,69 +160,51 @@ public class Robot {
         for (LLResultTypes.FiducialResult fiducial : fiducials) {
             int id = fiducial.getFiducialId(); // The ID number of the fiducial
             double y = fiducial.getTargetYDegrees(); // Where it is (up-down)
-            if(id == targetId) {
+            if (id == targetId) {
                 angle = Math.toRadians(y);
+                break;
             }
         }
-        if(angle == 0){
-            transfer.setVelocity(transferVelo);
-            launch.setVelocity(launchVelo);
-        }
-        distance = (goalHeight - limelightHeight) / Math.tan(angle);
-         */
-
-        // Insert distance to hood conversion here
-
+        x = (goalHeight - limelightHeight) / Math.tan(angle);
+        double targetVelo = 394.56267*x*Math.pow((0.25183*x-0.17955),-0.5);
+        double ff = Kv * targetVelo;
+        double currentVelo = launch.getVelocity();
+        double p = Kp * (targetVelo - currentVelo);
+        double power = Range.clip(ff + p, -0.2, 1.0);
+        transfer.setPosition(1);
+        launch.setPower(power);
         cycle.setPosition(shootPos[var]);
-        transfer.setPower(transferPower);
-        launch.setPower(launchPower);
     }
 
-    public void stopOuttake(){
-        cycleCW();
-        transfer.setPower(0);
+    public void stopOuttake(int reset){
+        if(reset == 1)
+            {var += 1;
+        setCycle(var);}
+        transfer.setPosition(0);
         launch.setPower(0);
     }
-    public void cycleCW(){
-        var += 1;
-        if(var >= 3){
-            var = 0;
-        }
+    public void setCycle(int pos){
+        var = pos % 3;
         cycle.setPosition(cyclePos[var]);
     }
-    public void setFL(){
-        fl.setPower(1);
-    }
-    public void setFR(){
-        fr.setPower(1);
-    }
-    public void setBL(){
-        bl.setPower(1);
-    }
-    public void setBR(){
-        br.setPower(1);
-    }
-
-    public void unsetFL(){
-        fl.setPower(0);
-    }
-    public void unsetFR(){
-        fr.setPower(0);
-    }
-    public void unsetBL(){
-        bl.setPower(0);
-    }
-    public void unsetBR(){
-        br.setPower(0);
-    }
-    public void cycleCCW(){
-        var -= 1;
-        if(var <= -1){
-            var = 2;
+    public void setMotor(int motor, double power){
+        if(motor == 0) {
+            fl.setPower(power);
         }
-        cycle.setPosition(cyclePos[var]);
+        else if(motor == 1) {
+            fr.setPower(power);
+        }
+        else if(motor == 2) {
+            bl.setPower(power);
+        }
+        else if(motor == 3) {
+            br.setPower(power);
+        }
     }
-    public void setHood(double pos){
-        hood.setPosition(pos);
+    public void setLaunch(double power){
+        launch.setPower(power);
+    }
+    public double getLaunchVelo(){
+        return launch.getVelocity();
     }
 }

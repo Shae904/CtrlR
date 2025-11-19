@@ -24,29 +24,21 @@ public class MotorTest extends LinearOpMode{
                 robot.imu.resetYaw();
             }
 
-            if(gamepad1.a){
-                robot.setFL();
-            }
-            else{
-                robot.unsetFL();
-            }
-            if(gamepad1.b){
-                robot.setFR();
-            }
-            else{
-                robot.unsetFR();
-            }
-            if(gamepad1.x){
-                robot.setBL();
-            }
-            else{
-                robot.unsetBL();
-            }
-            if(gamepad1.y){
-                robot.setBR();
-            }
-            else{
-                robot.unsetBR();
+            if(gamepad1.a){robot.setMotor(0,1);}
+            else{robot.setMotor(0,0);}
+
+            if(gamepad1.x){robot.setMotor(1,1);}
+            else{robot.setMotor(1,0);}
+
+            if(gamepad1.y){robot.setMotor(2,1);}
+            else{robot.setMotor(2,0);}
+
+            if(gamepad1.b){robot.setMotor(3,1);}
+            else {robot.setMotor(3, 0);}
+
+            if(gamepad1.left_bumper){
+                robot.setLaunch(1);
+                telemetry.addData("Max Velocity",robot.getLaunchVelo());
             }
         }
     }
