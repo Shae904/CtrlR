@@ -29,11 +29,8 @@ Motors
 1 - fl
 2 - br
 3 - bl
-Servos - none
 Expansion Hub
 Motors
-0 - empty
-1 - empty
 2 - launch
 3 - intake
 Servos
@@ -45,12 +42,14 @@ public class Robot {
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake,launch;
 
-    public final Servo cycle,transfer;
+    public final Servo transfer;
+    public final Servo cycle;
     public static LinearOpMode opMode;
     public static  double[] cyclePos = new double[3];
     public static double[] shootPos = new double[3];
     private int var = 0;
     private final Limelight3A limelight;
+    
     private final double transferPower = 0.9;
     public Robot(LinearOpMode opMode) {
         //TODO
@@ -117,6 +116,10 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
+        // Runtime config
+
+        
+
     }
 
     public Limelight3A getLimelight() {
@@ -138,16 +141,16 @@ public class Robot {
     }
     //TODO
     // Add distance to hood angle mapping
-    public void outtake(char color){
-
+    public void outtake(char color, double runtime){
+        double cycleTime = 0.4;
+        double outTime = 0.8;
         double Kv = 0.00039;
         double Kp = 0.001;
-
         double goalHeight = 29.5;
         double limelightHeight = 10.5;
         double angle = 0;
-        double x = 0;
-        int targetId = 0;
+        double x;
+        int targetId;
         if(color == 'r'){
             targetId = 24;
         }
@@ -171,15 +174,34 @@ public class Robot {
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
         double power = Range.clip(ff + p, -0.2, 1.0);
-        transfer.setPosition(1);
-        launch.setPower(power);
         cycle.setPosition(shootPos[var]);
+        launch.setPower(power);
+        while(runtime >= cycleTime && runtime < cycleTime + outTime){
+            transfer.setPosition(1);
+        }
+        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
+            transfer.setPosition(0);
+            var += 1;
+            setCycle(var);
+        }
+        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
+            transfer.setPosition(1);
+        }
+        while(runtime >= 3 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 3 * outTime) {
+            transfer.setPosition(0);
+            var += 1;
+            setCycle(var);
+        }
+        while(runtime >= 3 * cycleTime + 3 * outTime){
+            transfer.setPosition(1);
+        }
     }
 
     public void stopOuttake(int reset){
-        if(reset == 1)
-            {var += 1;
-        setCycle(var);}
+        if(reset == 1){
+            var += 1;
+            setCycle(var);
+        }
         transfer.setPosition(0);
         launch.setPower(0);
     }

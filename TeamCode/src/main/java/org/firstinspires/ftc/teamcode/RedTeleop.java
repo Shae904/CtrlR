@@ -3,14 +3,18 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.Robot;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name = "Teleop")
 public class RedTeleop extends LinearOpMode{
 
-    Robot robot;
+    public static Robot robot;
     int out = 0;
+    public ElapsedTime runtime;
     Limelight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
@@ -18,7 +22,8 @@ public class RedTeleop extends LinearOpMode{
         waitForStart();
         limelight = robot.getLimelight();
         limelight.start();
-        //START
+        runtime = new ElapsedTime();
+        // START
 
         // LOOP
         while (opModeIsActive()) {
@@ -54,7 +59,10 @@ public class RedTeleop extends LinearOpMode{
             robot.setDriveTrainPower(frontRightPower,frontLeftPower,backRightPower,backLeftPower);
 
             if(gamepad1.a){
-                robot.outtake('r');
+                if(out == 0){
+                    runtime.reset();
+                }
+                robot.outtake('r',runtime.seconds());
                 out = 1;
             }
             else{
