@@ -33,11 +33,11 @@ Servos - none
 Expansion Hub
 Motors
 0 - empty
-1 - transfer
+1 - empty
 2 - launch
 3 - intake
 Servos
-0 - hood
+0 - transfer
 4 - cycle
  */
 public class Robot {
