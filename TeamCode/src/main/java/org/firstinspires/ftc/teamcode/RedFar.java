@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-@Autonomous(name = "Autonomous", group = "Red")
+@Autonomous(name = "Red Far", group = "Red")
 public class RedFar extends LinearOpMode {
     public static Robot robot;
 

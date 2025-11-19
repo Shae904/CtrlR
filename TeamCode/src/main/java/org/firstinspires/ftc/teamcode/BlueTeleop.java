@@ -9,7 +9,7 @@ import org.firstinspires.ftc.teamcode.Robot;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-@TeleOp(name = "Teleop")
+@TeleOp(name = "Blue Teleop")
 public class BlueTeleop extends LinearOpMode{
 
     public static Robot robot;
