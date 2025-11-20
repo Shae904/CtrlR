@@ -155,8 +155,8 @@ public class Robot {
     //TODO
     // Add distance to hood angle mapping
     public void outtake(char color, double runtime){
-        double cycleTime = 0.4;
-        double outTime = 0.8;
+        double cycleTime = 0.4; // TODO Tune
+        double outTime = 0.8; // TODO Tune
         double Kv = 0.00039;
         double Kp = 0.001;
         double goalHeight = 29.5;
@@ -200,12 +200,12 @@ public class Robot {
         while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
             transfer.setPosition(1);
         }
-        while(runtime >= 3 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 3 * outTime) {
+        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
             transfer.setPosition(0);
             var += 1;
             setCycle(var);
         }
-        while(runtime >= 3 * cycleTime + 3 * outTime){
+        while(runtime >= 3 * cycleTime + 2 * outTime){
             transfer.setPosition(1);
         }
     }

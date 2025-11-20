@@ -6,6 +6,8 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -15,14 +17,16 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
+import java.util.List;
+
 @Autonomous(name = "Red Far", group = "Red")
 public class RedFar extends LinearOpMode {
     public static Robot robot;
 
 
     public static double[][] PoseCoords = {
-            {96,18,90}, // Start
-            {72,24,Math.atan(72.0/120.0) * 180.0 / Math.PI}, // Shoot
+            {96,9,90}, // Start
+            {96,9,Math.atan(72.0/120.0) * 180.0 / Math.PI}, // Shoot
             {83,84,0}, // Intake PPG Start
             {114,84,0}, // Intake PPG End
             {83,60,0}, // Intake PGP Start
@@ -37,7 +41,11 @@ public class RedFar extends LinearOpMode {
     public Limelight3A limelight;
     public static int target = 24;
     public final Telemetry telemetry;
-    public static ElapsedTime shootTime;
+    public int[] colors;
+
+    public enum PathState{PRELOAD,PPG,PGP,GPP,STOP}
+
+    private PathState pathState = PathState.PRELOAD;
 
     public RedFar(Telemetry telemetry) {
         this.telemetry = telemetry;
@@ -93,6 +101,37 @@ public class RedFar extends LinearOpMode {
                 .build();
     }
 
+    public void intakeThree(int pattern){
+        if(pattern == 21){
+
+        }
+    }
+
+    public void shootThree(int pattern){
+        ElapsedTime shootTime = new ElapsedTime();
+        double cycleTime = 0.4; // TODO Copy from Robot after tuning
+        double outTime = 0.8; // TODO Copy from Robot after tuning
+        while(shootTime.seconds() < 3 * cycleTime + 3 * outTime){
+            robot.outtake('r',shootTime.seconds());
+        }
+        robot.stopOuttake(0);
+        robot.setCycle(0);
+    }
+
+    public void autonomousPathUpdate(){
+        switch (pathState){
+            case PRELOAD:
+                if(pattern == 21){
+                    robot.setCycle(1);
+                }
+                else if(pattern == 23){
+                    robot.setCycle(2);
+                }
+                shootThree(pattern);
+            case STOP:
+        }
+    }
+
     public void runOpMode() throws InterruptedException {
         //INIT
         buildPaths();
@@ -102,6 +141,15 @@ public class RedFar extends LinearOpMode {
         waitForStart();
         limelight = robot.getLimelight();
         limelight.start();
+        pattern = 21;
+        LLResult result = limelight.getLatestResult();
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+        for (LLResultTypes.FiducialResult fiducial : fiducials) {
+            int id = fiducial.getFiducialId(); // The ID number of the fiducial
+            if(id >= 21 && id <= 23){
+                pattern = id;
+            }
+        }
         // START
         initializePoses();
         // LOOP
