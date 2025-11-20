@@ -1,8 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.graphics.Color;
+
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -45,10 +48,15 @@ public class Robot {
     public final Servo transfer;
     public final Servo cycle;
     public static LinearOpMode opMode;
+    public final ColorSensor zero,one,two;
     public static  double[] cyclePos = new double[3];
     public static double[] shootPos = new double[3];
     private int var = 0;
     private final Limelight3A limelight;
+
+    public int purpleRThreshold = 128;
+    public int purpleBThreshold = 128;
+    public int greenGThreshold = 128;
     
     private final double transferPower = 0.9;
     public Robot(LinearOpMode opMode) {
@@ -116,7 +124,12 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
-        // Runtime config
+        // Color Sensor Config
+
+        zero = hardwareMap.get(ColorSensor.class, "transfer");
+        one = hardwareMap.get(ColorSensor.class, "transfer");
+        two = hardwareMap.get(ColorSensor.class, "transfer");
+
 
         
 
@@ -228,5 +241,30 @@ public class Robot {
     }
     public double getLaunchVelo(){
         return launch.getVelocity();
+    }
+    public int[] getColorReadings(){
+        int[] out = {0,0,0};
+
+        if(zero.red() >= purpleRThreshold && zero.blue() >= purpleBThreshold){
+            out[0] = 1;
+        }
+        else if(zero.green() >= greenGThreshold){
+            out[0] = -1;
+        }
+
+        if(one.red() >= purpleRThreshold && one.blue() >= purpleBThreshold){
+            out[1] = 1;
+        }
+        else if(one.green() >= greenGThreshold){
+            out[1] = -1;
+        }
+
+        if(two.red() >= purpleRThreshold && two.blue() >= purpleBThreshold){
+            out[2] = 1;
+        }
+        else if(two.green() >= greenGThreshold){
+            out[2] = -1;
+        }
+        return out;
     }
 }
