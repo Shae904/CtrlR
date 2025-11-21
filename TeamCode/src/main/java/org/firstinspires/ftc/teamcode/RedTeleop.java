@@ -36,7 +36,7 @@ public class RedTeleop extends LinearOpMode{
             double x = gamepad1.left_stick_x;
             double rx = gamepad1.right_stick_x;
 
-            double botHeading = AngleUnit.DEGREES.toRadians(robot.getHeading());
+            double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
 
             double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
             double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
@@ -48,6 +48,11 @@ public class RedTeleop extends LinearOpMode{
             double frontRightPower = (rotY - rotX - rx) / denominator;
             double backRightPower = (rotY + rotX - rx) / denominator;
 
+            robot.fr.setPower(frontRightPower);
+            robot.fl.setPower(frontLeftPower);
+            robot.br.setPower(backRightPower);
+            robot.bl.setPower(backLeftPower);
+
             // Slow mode
             if (gamepad1.right_bumper) {
                 frontLeftPower *= 0.4;
@@ -55,8 +60,6 @@ public class RedTeleop extends LinearOpMode{
                 frontRightPower *= 0.4;
                 backRightPower *= 0.4;
             }
-
-            robot.setDriveTrainPower(frontRightPower,frontLeftPower,backRightPower,backLeftPower);
 
             if(gamepad1.a){
                 if(out == 0){

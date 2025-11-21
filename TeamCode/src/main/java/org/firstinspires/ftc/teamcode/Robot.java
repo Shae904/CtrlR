@@ -69,7 +69,7 @@ public class Robot {
         //TODO
         // Set bounds for hood and cycle servos
         Robot.opMode = opMode;
-        HardwareMap hardwareMap = opMode.hardwareMap;
+            HardwareMap hardwareMap = opMode.hardwareMap;
         // Drivetrain
         bl = hardwareMap.dcMotor.get("bl");
         br = hardwareMap.dcMotor.get("br");
@@ -149,13 +149,6 @@ public class Robot {
 
     public double getHeading() {
         return this.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-    }
-
-    public void setDriveTrainPower(double frPow, double flPow, double brPow, double blPow) {
-        fr.setPower(frPow);
-        fl.setPower(flPow);
-        br.setPower(brPow);
-        bl.setPower(blPow);
     }
     public void setIntakePower(double intakePower){
         intake.setPower(intakePower);
