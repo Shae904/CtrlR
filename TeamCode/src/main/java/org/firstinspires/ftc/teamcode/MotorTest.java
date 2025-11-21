@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-@TeleOp(name = "Teleop")
+@TeleOp(name = "Motor Test")
 public class MotorTest extends LinearOpMode{
     Robot robot;
     //LimeLight3A limelight;

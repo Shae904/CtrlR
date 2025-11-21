@@ -39,6 +39,12 @@ Motors
 Servos
 0 - transfer
 4 - cycle
+IUC Bus 0
+0 - zero
+IUC Bus 1
+0 - one
+IUC Bus 2
+0 - two
  */
 public class Robot {
     public final IMU imu;
