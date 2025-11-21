@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import android.graphics.Color;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -46,6 +47,7 @@ IUC Bus 1
 IUC Bus 2
 0 - two
  */
+@Configurable
 public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
@@ -55,8 +57,8 @@ public class Robot {
     public final Servo cycle;
     public static LinearOpMode opMode;
     public final ColorSensor zero,one,two;
-    public static  double[] cyclePos = new double[3];
-    public static double[] shootPos = new double[3];
+    public static  double[] cyclePos = {0,90/355.0,180/355.0};
+    public static double[] shootPos = {45/355.0,135/355.0,225/355.0};
     private int var = 0;
     private final Limelight3A limelight;
 
@@ -108,14 +110,6 @@ public class Robot {
 
         intake.setMode(RunMode.RUN_USING_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
-        cyclePos[0] = 0;
-        cyclePos[1] = 1/3.0;
-        cyclePos[2] = 2/3.0;
-
-        shootPos[0] = 1/6.0;
-        shootPos[1] = 1/2.0;
-        shootPos[2] = 5/6.0;
 
         // Outtake config
 
@@ -171,7 +165,7 @@ public class Robot {
         else{
             targetId = 20;
         }
-        cycle.setPosition(shootPos[var]);
+//        cycle.setPosition(shootPos[var]);
         LLResult result = limelight.getLatestResult();
         List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
         for (LLResultTypes.FiducialResult fiducial : fiducials) {

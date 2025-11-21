@@ -73,9 +73,11 @@ public class BlueTeleop extends LinearOpMode{
             }
             if (gamepad2.y) {
                 robot.setCycle(0);
-            } else if (gamepad2.b) {
+            }
+            if (gamepad2.b) {
                 robot.setCycle(1);
-            } else if (gamepad2.x) {
+            }
+            if (gamepad2.x) {
                 robot.setCycle(2);
             }
             if (gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0) {

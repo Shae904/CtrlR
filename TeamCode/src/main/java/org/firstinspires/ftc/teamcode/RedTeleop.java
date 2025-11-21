@@ -14,7 +14,7 @@ public class RedTeleop extends LinearOpMode{
 
     public static Robot robot;
     int out = 0;
-    public ElapsedTime runtime;
+    public ElapsedTime shootTime;
     Limelight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
@@ -22,7 +22,7 @@ public class RedTeleop extends LinearOpMode{
         waitForStart();
         limelight = robot.getLimelight();
         limelight.start();
-        runtime = new ElapsedTime();
+        shootTime = new ElapsedTime();
         // START
 
         // LOOP
@@ -59,33 +59,33 @@ public class RedTeleop extends LinearOpMode{
                 backLeftPower *= 0.4;
                 frontRightPower *= 0.4;
                 backRightPower *= 0.4;
+
             }
 
-            if(gamepad1.a){
-                if(out == 0){
-                    runtime.reset();
+            if (gamepad2.a) {
+                if (out == 0) {
+                    shootTime.reset();
                 }
-                robot.outtake('r',runtime.seconds());
+                robot.outtake('r', shootTime.seconds());
                 out = 1;
-            }
-            else{
+            } else {
                 robot.stopOuttake(out);
                 out = 0;
             }
-
-            if(gamepad1.y){
+            if (gamepad2.y) {
                 robot.setCycle(0);
             }
-            else if(gamepad1.b){
+            if (gamepad2.b) {
                 robot.setCycle(1);
             }
-            else if(gamepad1.x){
+            if (gamepad2.x) {
                 robot.setCycle(2);
             }
-            if(gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0){
+            if (gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0) {
                 robot.setIntakePower(gamepad1.right_trigger - gamepad1.left_trigger);
-            }
-            else{
+            } else if (gamepad2.right_trigger > 0 || gamepad2.left_trigger > 0) {
+                robot.setIntakePower(gamepad2.right_trigger - gamepad2.left_trigger);
+            } else {
                 robot.setIntakePower(0);
             }
             telemetry.update();
