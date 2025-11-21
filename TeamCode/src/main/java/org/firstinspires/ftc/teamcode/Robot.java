@@ -94,10 +94,11 @@ public class Robot {
         imu.resetYaw();
 
         // Initializing other motors
+        cycle =  hardwareMap.get(Servo.class,"cycle");
 
         intake = hardwareMap.get(DcMotorEx.class, "intake");
 
-        cycle =  hardwareMap.get(Servo.class,"cycle");
+
 
         intake.setMode(RunMode.RUN_USING_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
