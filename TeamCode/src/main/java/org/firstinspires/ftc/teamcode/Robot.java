@@ -68,24 +68,23 @@ public class Robot {
     public Robot(LinearOpMode opMode) {
         //TODO
         // Set bounds for hood and cycle servos
-        this.opMode = opMode;
+        Robot.opMode = opMode;
         HardwareMap hardwareMap = opMode.hardwareMap;
         // Drivetrain
-        fl = hardwareMap.dcMotor.get("fl");
-        fr = hardwareMap.dcMotor.get("fr");
         bl = hardwareMap.dcMotor.get("bl");
         br = hardwareMap.dcMotor.get("br");
+        fl = hardwareMap.dcMotor.get("fl");
+        fr = hardwareMap.dcMotor.get("fr");
 
+        fl.setDirection(Direction.REVERSE);
+        fr.setDirection(Direction.FORWARD);
+        bl.setDirection(Direction.REVERSE);
+        br.setDirection(Direction.FORWARD);
 
         fl.setMode(RunMode.RUN_WITHOUT_ENCODER);
         fr.setMode(RunMode.RUN_WITHOUT_ENCODER);
         bl.setMode(RunMode.RUN_WITHOUT_ENCODER);
         br.setMode(RunMode.RUN_WITHOUT_ENCODER);
-
-        fl.setDirection(Direction.REVERSE);
-        fr.setDirection(Direction.FORWARD);
-        bl.setDirection(Direction.FORWARD);
-        br.setDirection(Direction.REVERSE);
 
         fl.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         fr.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
@@ -94,10 +93,11 @@ public class Robot {
 
         imu = hardwareMap.get(IMU.class, "imu");
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                LogoFacingDirection.LEFT,
+                LogoFacingDirection.RIGHT,
                 RevHubOrientationOnRobot.UsbFacingDirection.UP));
         imu.initialize(parameters);
-        imu.resetYaw();
+        opMode.telemetry.addData("IMU Initialized", true);
+        opMode.telemetry.update();
 
         // Initializing other motors
 
@@ -124,6 +124,7 @@ public class Robot {
         launch.setDirection(Direction.REVERSE);
 
         transfer = hardwareMap.get(Servo.class, "transfer");
+        transfer.scaleRange(0.1,0.3); // TODO Tune this
 
         // Limelight config
 

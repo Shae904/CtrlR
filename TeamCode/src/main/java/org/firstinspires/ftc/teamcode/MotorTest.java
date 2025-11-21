@@ -46,6 +46,7 @@ public class MotorTest extends LinearOpMode{
                 telemetry.addData("Back Left Sensor Reading:", readings[1]);
                 telemetry.addData("Back Right Sensor Reading:", readings[2]);
             }
+            telemetry.update();
         }
     }
 }

@@ -26,7 +26,7 @@ public class RedFar extends LinearOpMode {
 
     public static double[][] PoseCoords = {
             {96,9,90}, // Start
-            {96,9,Math.atan(72.0/120.0) * 180.0 / Math.PI}, // Shoot
+            {96,10,Math.atan(48.0/134.0) * 180.0 / Math.PI}, // Shoot
             {83,84,0}, // Intake PPG Start
             {114,84,0}, // Intake PPG End
             {83,60,0}, // Intake PGP Start
@@ -45,7 +45,7 @@ public class RedFar extends LinearOpMode {
 
     public enum PathState{PRELOAD,PPG,PGP,GPP,STOP}
 
-    private PathState pathState = PathState.PRELOAD;
+    private final PathState pathState = PathState.PRELOAD;
 
     public RedFar(Telemetry telemetry) {
         this.telemetry = telemetry;
@@ -53,57 +53,77 @@ public class RedFar extends LinearOpMode {
 
     public void initializePoses(){
         for(int i = 0; i < Poses.length; i++) {
-           Poses[i] = new Pose(PoseCoords[i][0],PoseCoords[i][1],PoseCoords[i][2]);
+           Poses[i] = new Pose(PoseCoords[i][0],PoseCoords[i][1],Math.toRadians(PoseCoords[i][2]));
         }
     }
 
     public PathChain shootPreload,preIntakePPG,intakePPG,launchPPG,preIntakePGP,intakePGP,launchPGP,preIntakeGPP,intakeGPP,launchGPP;
     public void buildPaths(){
+        initializePoses();
         shootPreload = follower.pathBuilder()
                 .addPath(new BezierLine(START,SHOOT))
                 .setLinearHeadingInterpolation(START.getHeading(), SHOOT.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
+
         preIntakePPG = follower.pathBuilder()
                 .addPath(new BezierLine(SHOOT,INTAKE_PPG_START))
                 .setLinearHeadingInterpolation(SHOOT.getHeading(), INTAKE_PPG_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         intakePPG = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_PPG_START,INTAKE_PPG_END))
                 .setConstantHeadingInterpolation(INTAKE_PPG_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         launchPPG = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_PPG_END,SHOOT))
                 .setLinearHeadingInterpolation(INTAKE_PPG_START.getHeading(),SHOOT.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
+
         preIntakePGP = follower.pathBuilder()
                 .addPath(new BezierLine(SHOOT,INTAKE_PGP_START))
                 .setLinearHeadingInterpolation(SHOOT.getHeading(), INTAKE_PGP_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         intakePGP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_PGP_START,INTAKE_PGP_END))
                 .setConstantHeadingInterpolation(INTAKE_PGP_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         launchPGP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_PGP_END,SHOOT))
                 .setLinearHeadingInterpolation(INTAKE_PGP_START.getHeading(),SHOOT.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
+
         preIntakeGPP = follower.pathBuilder()
                 .addPath(new BezierLine(SHOOT,INTAKE_GPP_START))
                 .setLinearHeadingInterpolation(SHOOT.getHeading(), INTAKE_GPP_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         intakeGPP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_GPP_START,INTAKE_GPP_END))
                 .setConstantHeadingInterpolation(INTAKE_GPP_START.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
         launchGPP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_GPP_END,SHOOT))
                 .setLinearHeadingInterpolation(INTAKE_GPP_START.getHeading(),SHOOT.getHeading())
+                .setTimeoutConstraint(500)
                 .build();
     }
 
-    public void intakeThree(int pattern){
-        if(pattern == 21){
+    public void intakeThree(int target){
+        // 0 for GPP
+        // 1 for PGP
+        // 2 for PPG
+        if(target == 0){
+            follower.followPath(preIntakeGPP);
+            if(!follower.isBusy()){
 
+            }
         }
     }
 
@@ -114,13 +134,16 @@ public class RedFar extends LinearOpMode {
         while(shootTime.seconds() < 3 * cycleTime + 3 * outTime){
             robot.outtake('r',shootTime.seconds());
         }
-        robot.stopOuttake(0);
-        robot.setCycle(0);
+        while(shootTime.seconds() >= 3 * cycleTime + 3 * outTime) {
+            robot.stopOuttake(0);
+            robot.setCycle(0);
+        }
     }
 
     public void autonomousPathUpdate(){
         switch (pathState){
             case PRELOAD:
+
                 if(pattern == 21){
                     robot.setCycle(1);
                 }
@@ -135,25 +158,34 @@ public class RedFar extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
         //INIT
         buildPaths();
-        robot = new Robot(this);
-        follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(START);
-        waitForStart();
-        limelight = robot.getLimelight();
-        limelight.start();
-        pattern = 21;
-        LLResult result = limelight.getLatestResult();
-        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-        for (LLResultTypes.FiducialResult fiducial : fiducials) {
-            int id = fiducial.getFiducialId(); // The ID number of the fiducial
-            if(id >= 21 && id <= 23){
-                pattern = id;
+
+        while(this.opModeInInit()) {
+            robot = new Robot(this);
+            follower = Constants.createFollower(hardwareMap);
+            follower.setStartingPose(START);
+            waitForStart();
+
+            // Limelight setup
+            limelight = robot.getLimelight();
+            limelight.start();
+            pattern = 21;
+            LLResult result = limelight.getLatestResult();
+            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+            for (LLResultTypes.FiducialResult fiducial : fiducials) {
+                int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                if (id >= 21 && id <= 23) {
+                    pattern = id;
+                }
             }
+
+
         }
-        // START
-        initializePoses();
-        // LOOP
-        if(opModeIsActive()) {
+        while(this.opModeIsActive()){
+            autonomousPathUpdate();
+
+            telemetry.addData("Path State", pathState);
+            telemetry.addData("Pattern", pattern);
+            telemetry.update();
         }
     }
 }

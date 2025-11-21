@@ -85,6 +85,7 @@ public class RedTeleop extends LinearOpMode{
             else{
                 robot.setIntakePower(0);
             }
+            telemetry.update();
         }
     }
 }
