@@ -57,7 +57,7 @@ public class Robot {
     public int purpleRThreshold = 128;
     public int purpleBThreshold = 128;
     public int greenGThreshold = 128;
-    
+
     private final double transferPower = 0.9;
     public Robot(LinearOpMode opMode) {
         //TODO
@@ -127,12 +127,12 @@ public class Robot {
 
         // Color Sensor Config
 
-        zero = hardwareMap.get(ColorSensor.class, "transfer");
-        one = hardwareMap.get(ColorSensor.class, "transfer");
-        two = hardwareMap.get(ColorSensor.class, "transfer");
+        zero = hardwareMap.get(ColorSensor.class, "csfront");
+        one = hardwareMap.get(ColorSensor.class, "csleft");
+        two = hardwareMap.get(ColorSensor.class, "csright");
 
 
-        
+
 
     }
 
@@ -190,25 +190,25 @@ public class Robot {
         double power = Range.clip(ff + p, -0.2, 1.0);
         cycle.setPosition(shootPos[var]);
         launch.setPower(power);
-        while(runtime >= cycleTime && runtime < cycleTime + outTime){
-            transfer.setPosition(1);
-        }
-        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
-            transfer.setPosition(0);
-            var += 1;
-            setCycle(var);
-        }
-        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
-            transfer.setPosition(1);
-        }
-        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
-            transfer.setPosition(0);
-            var += 1;
-            setCycle(var);
-        }
-        while(runtime >= 3 * cycleTime + 2 * outTime){
-            transfer.setPosition(1);
-        }
+//        while(runtime >= cycleTime && runtime < cycleTime + outTime){
+//            transfer.setPosition(1);
+//        }
+//        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
+//            transfer.setPosition(0);
+//            var += 1;
+//            setCycle(var);
+//        }
+//        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
+//            transfer.setPosition(1);
+//        }
+//        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
+//            transfer.setPosition(0);
+//            var += 1;
+//            setCycle(var);
+//        }
+//        while(runtime >= 3 * cycleTime + 2 * outTime){
+//            transfer.setPosition(1);
+//        }
     }
 
     public void stopOuttake(int reset){
