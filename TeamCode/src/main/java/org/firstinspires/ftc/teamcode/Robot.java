@@ -19,6 +19,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.Range;
 
 import java.util.List;
@@ -54,15 +55,13 @@ public class Robot {
     public final DcMotorEx intake,launch;
     public static double transferOne = 0;
     public static double transferTwo = 0;
-
-    public final Servo transfer;
-    public final Servo cycle;
+    public final ServoImplEx transfer,cycle;
     public static double transferMin = 0;
     public static double transferMax = 0.1;
     public static LinearOpMode opMode;
     public final ColorSensor zero,one,two;
     public static  double[] cyclePos = {0,0.32,0.59};
-    public static double[] shootPos = {0.17,0.45,0.70};
+    public static double[] shootPos = {0.14,0.45,0.74};
     private int var = 0;
     private final Limelight3A limelight;
 
@@ -106,7 +105,7 @@ public class Robot {
         opMode.telemetry.update();
 
         // Initializing other motors
-        cycle =  hardwareMap.get(Servo.class,"cycle");
+        cycle =  (ServoImplEx) hardwareMap.get(Servo.class,"cycle");
 
         intake = hardwareMap.get(DcMotorEx.class, "intake");
 
@@ -122,7 +121,7 @@ public class Robot {
         launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
         launch.setDirection(Direction.REVERSE);
 
-        transfer = hardwareMap.get(Servo.class, "transfer");
+        transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");
         transfer.scaleRange(0.23,0.67);
 
         // Limelight config

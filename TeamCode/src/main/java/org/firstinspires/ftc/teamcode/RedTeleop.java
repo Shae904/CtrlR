@@ -49,7 +49,6 @@ public class RedTeleop extends LinearOpMode{
             double backRightPower = (rotY + rotX - rx) / denominator;
 
             robot.fr.setPower(frontRightPower);
-            robot.fl.setPower(frontLeftPower);
             robot.br.setPower(backRightPower);
             robot.bl.setPower(backLeftPower);
 
