@@ -52,13 +52,17 @@ public class Robot {
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake,launch;
+    public static double transferOne = 0;
+    public static double transferTwo = 0;
 
     public final Servo transfer;
     public final Servo cycle;
+    public static double transferMin = 0;
+    public static double transferMax = 0.1;
     public static LinearOpMode opMode;
     public final ColorSensor zero,one,two;
-    public static  double[] cyclePos = {0,90/355.0,180/355.0};
-    public static double[] shootPos = {45/355.0,135/355.0,225/355.0};
+    public static  double[] cyclePos = {0,0.32,0.59};
+    public static double[] shootPos = {0.17,0.45,0.70};
     private int var = 0;
     private final Limelight3A limelight;
 
@@ -119,7 +123,7 @@ public class Robot {
         launch.setDirection(Direction.REVERSE);
 
         transfer = hardwareMap.get(Servo.class, "transfer");
-        transfer.scaleRange(0.1,0.3); // TODO Tune this
+        transfer.scaleRange(0.23,0.67);
 
         // Limelight config
 
@@ -184,25 +188,25 @@ public class Robot {
         double power = Range.clip(ff + p, -0.2, 1.0);
         cycle.setPosition(shootPos[var]);
         launch.setPower(power);
-//        while(runtime >= cycleTime && runtime < cycleTime + outTime){
-//            transfer.setPosition(1);
-//        }
-//        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
-//            transfer.setPosition(0);
-//            var += 1;
-//            setCycle(var);
-//        }
-//        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
-//            transfer.setPosition(1);
-//        }
-//        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
-//            transfer.setPosition(0);
-//            var += 1;
-//            setCycle(var);
-//        }
-//        while(runtime >= 3 * cycleTime + 2 * outTime){
-//            transfer.setPosition(1);
-//        }
+        while(runtime >= cycleTime && runtime < cycleTime + outTime){
+            transfer.setPosition(1);
+        }
+        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
+            transfer.setPosition(0);
+            var += 1;
+            setCycle(var);
+        }
+        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
+            transfer.setPosition(1);
+        }
+        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
+            transfer.setPosition(0);
+            var += 1;
+            setCycle(var);
+        }
+        while(runtime >= 3 * cycleTime + 2 * outTime){
+            transfer.setPosition(1);
+        }
     }
 
     public void stopOuttake(int reset){
@@ -262,4 +266,12 @@ public class Robot {
         }
         return out;
     }
+
+    public void setTransferOne() {
+        transfer.setPosition(transferOne);
+    }
+    public void setTransferTwo(){
+        transfer.setPosition(transferTwo);
+    }
+
 }
