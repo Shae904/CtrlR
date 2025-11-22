@@ -19,20 +19,20 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
-@Autonomous(name = "Red Far", group = "Red")
-public class RedFar extends LinearOpMode {
+@Autonomous(name = "Blue Far", group = "Blue")
+public class BlueFar extends LinearOpMode {
     public static Robot robot;
 
 
     public static double[][] PoseCoords = {
-            {96,9,90}, // Start
-            {96,10,Math.atan(48.0/134.0) * 180.0 / Math.PI}, // Shoot
-            {83,84,0}, // Intake PPG Start
-            {114,84,0}, // Intake PPG End
-            {83,60,0}, // Intake PGP Start
-            {114,60,0}, // Intake PGP End
-            {83,36,0}, // Intake GPP Start
-            {114,36,0} // Intake GPP End
+            {48,9,90}, // Start
+            {48,10,Math.atan(-48.0/134.0) * 180.0 / Math.PI}, // Shoot
+            {61,84,0}, // Intake PPG Start
+            {30,84,0}, // Intake PPG End
+            {61,60,0}, // Intake PGP Start
+            {30,60,0}, // Intake PGP End
+            {61,36,0}, // Intake GPP Start
+            {30,36,0} // Intake GPP End
     };
     public static Pose START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END;
     public Pose[] Poses = {START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END};
@@ -43,17 +43,17 @@ public class RedFar extends LinearOpMode {
     public final Telemetry telemetry;
     public int[] colors;
 
+    public BlueFar(Telemetry telemetry) {
+        this.telemetry = telemetry;
+    }
+
     public enum PathState{PRELOAD,PPG,PGP,GPP,STOP}
 
     private PathState pathState = PathState.PRELOAD;
 
-    public RedFar(Telemetry telemetry) {
-        this.telemetry = telemetry;
-    }
-
     public void initializePoses(){
         for(int i = 0; i < Poses.length; i++) {
-           Poses[i] = new Pose(PoseCoords[i][0],PoseCoords[i][1],Math.toRadians(PoseCoords[i][2]));
+            Poses[i] = new Pose(PoseCoords[i][0],PoseCoords[i][1],Math.toRadians(PoseCoords[i][2]));
         }
     }
 
@@ -129,10 +129,10 @@ public class RedFar extends LinearOpMode {
 
     public void shootThree(int pattern){
         ElapsedTime shootTime = new ElapsedTime();
-        double cycleTime = 0.4; // TODO Copy from Robot after tuning
-        double outTime = 0.8; // TODO Copy from Robot after tuning
+        double cycleTime = 0.2; // TODO Copy from Robot after tuning
+        double outTime = 0.4; // TODO Copy from Robot after tuning
         while(shootTime.seconds() < 3 * cycleTime + 3 * outTime){
-            robot.outtake('r',shootTime.seconds());
+            robot.outtake('b',shootTime.seconds());
         }
         while(shootTime.seconds() >= 3 * cycleTime + 3 * outTime) {
             robot.stopOuttake(0);
