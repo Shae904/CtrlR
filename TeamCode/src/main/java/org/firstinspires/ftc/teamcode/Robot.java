@@ -62,8 +62,6 @@ public class Robot {
     public final ColorSensor zero,one,two;
     public static  double[] cyclePos = {0,0.32,0.59};
     public static double[] shootPos = {0.14,0.45,0.74};
-    public static double cycleTime = 0.4; // TODO Tune
-    public static double outTime = 0.8; // TODO Tune
     private int var = 0;
     private final Limelight3A limelight;
 
@@ -155,6 +153,8 @@ public class Robot {
     //TODO
     // Add distance to hood angle mapping
     public void outtake(char color, double runtime){
+        double cycleTime = 0.4; // TODO Tune
+        double outTime = 0.8; // TODO Tune
         double Kv = 0.00039;
         double Kp = 0.001;
         double goalHeight = 29.5;
