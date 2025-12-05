@@ -1,5 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+
+import com.bylazar.camerastream.PanelsCameraStream;
 import com.bylazar.configurables.PanelsConfigurables;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -8,7 +12,10 @@ import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.robotcore.external.function.Consumer;
+import org.firstinspires.ftc.robotcore.external.function.Continuation;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.stream.CameraStreamSource;
 
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
@@ -16,11 +23,15 @@ import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvPipeline;
 import org.openftc.easyopencv.OpenCvWebcam;
 
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+import com.bylazar.camerastream.PanelsCameraStream;
+import java.util.concurrent.atomic.AtomicReference;
+
 
 @Configurable
 @TeleOp(name = "C920 EasyOpenCV (Panels)", group = "Vision")
@@ -58,6 +69,10 @@ public class C920PanelsEOCV extends LinearOpMode {
         );
 
         webcam.setPipeline(pipeline);
+
+        // start panels camera stream using this pipeline as source
+        PanelsCameraStream.INSTANCE.startStream(pipeline);
+
         webcam.setViewportRenderer(OpenCvCamera.ViewportRenderer.GPU_ACCELERATED);
         webcam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
 
@@ -102,16 +117,23 @@ public class C920PanelsEOCV extends LinearOpMode {
             webcam.stopStreaming();
             webcam.closeCameraDevice();
         }
+
+        // stop panels camera stream
+        PanelsCameraStream.INSTANCE.stopStream(pipeline);
     }
 
-    public static class C920Pipeline extends OpenCvPipeline {
+    public static class C920Pipeline extends OpenCvPipeline implements CameraStreamSource {
         private final Mat hsv = new Mat();
-        private final Mat mask = new Mat();        // for generic slider mask / mean HSV
+        private final Mat mask = new Mat();        // for generic slider mask / mean hsv
         private final Mat maskGreen = new Mat();   // per-slot green mask
         private final Mat maskPurple = new Mat();  // per-slot purple mask
 
         private long frameCount = 0;
         private double lastH = 0, lastS = 0, lastV = 0;
+
+        // latest frame for panels camerastream
+        private final AtomicReference<Bitmap> lastFrame =
+                new AtomicReference<>(Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565));
 
         public enum SlotState {
             EMPTY,
@@ -121,34 +143,34 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         // TODO: change these rects to match where the 3 slots actually are in the image
         private final Rect[] slotRects = new Rect[] {
-                new Rect(50, 200, 80, 80),   // Slot 1
-                new Rect(170, 200, 80, 80),  // Slot 2
-                new Rect(290, 200, 80, 80)   // Slot 3
+                new Rect(50, 200, 80, 80),   // slot 1
+                new Rect(170, 200, 80, 80),  // slot 2
+                new Rect(290, 200, 80, 80)   // slot 3
         };
 
         private final SlotState[] slotStates = new SlotState[] {
                 SlotState.EMPTY, SlotState.EMPTY, SlotState.EMPTY
         };
 
-        // tuneHSV vals!!!!
+        // tune hsv vals
         private final Scalar greenLower = new Scalar(40, 70, 70);
         private final Scalar greenUpper = new Scalar(90, 255, 255);
 
         private final Scalar purpleLower = new Scalar(130, 60, 60);
         private final Scalar purpleUpper = new Scalar(160, 255, 255);
 
-        // min colored pixels to detect ball. TUNE THIS.
+        // min colored pixels to detect ball. tune this.
         private final int minPixelsForBall = 300;
 
         @Override
         public Mat processFrame(Mat input) {
             frameCount++;
 
-
+            // convert to hsv
             Imgproc.cvtColor(input, hsv, Imgproc.COLOR_RGBA2RGB);
             Imgproc.cvtColor(hsv, hsv, Imgproc.COLOR_RGB2HSV);
 
-            //sliders
+            // slider mask
             Scalar lower = new Scalar(lowerH, lowerS, lowerV);
             Scalar upper = new Scalar(upperH, upperS, upperV);
             Core.inRange(hsv, lower, upper, mask);
@@ -162,7 +184,7 @@ public class C920PanelsEOCV extends LinearOpMode {
             for (int i = 0; i < slotRects.length; i++) {
                 Rect r = slotRects[i];
 
-                //
+                // clamp rect to image bounds
                 Rect bounded = new Rect(
                         Math.max(0, r.x),
                         Math.max(0, r.y),
@@ -177,11 +199,11 @@ public class C920PanelsEOCV extends LinearOpMode {
 
                 Mat slotHSV = hsv.submat(bounded);
 
-                // Green mask
+                // green mask
                 Core.inRange(slotHSV, greenLower, greenUpper, maskGreen);
                 int greenCount = Core.countNonZero(maskGreen);
 
-                // Purple mask
+                // purple mask
                 Core.inRange(slotHSV, purpleLower, purpleUpper, maskPurple);
                 int purpleCount = Core.countNonZero(maskPurple);
 
@@ -196,7 +218,7 @@ public class C920PanelsEOCV extends LinearOpMode {
 
                 slotStates[i] = state;
 
-                // craw a rectangle showing classification on the output frame
+                // draw a rectangle showing classification on the output frame
                 Scalar boxColor;
                 switch (state) {
                     case GREEN:
@@ -213,8 +235,36 @@ public class C920PanelsEOCV extends LinearOpMode {
                 slotHSV.release();
             }
 
-            // Return annotated RGB image so Panels Camera Stream shows boxes
+            // update bitmap for panels (annotated frame)
+            try {
+                if (!input.empty()) {
+                    Bitmap b = Bitmap.createBitmap(input.cols(), input.rows(), Bitmap.Config.RGB_565);
+                    Utils.matToBitmap(input, b);
+                    lastFrame.set(b);
+                }
+            } catch (Exception e) {
+                // ignore, don't crash on weird frame
+            }
+
+            // return annotated rgb image so ds preview + panels see boxes
             return input;
+        }
+
+        // camerastreamsource impl for panels
+
+        @Override
+        public void getFrameBitmap(Continuation<? extends Consumer<Bitmap>> continuation) {
+            continuation.dispatch(bitmapConsumer -> bitmapConsumer.accept(lastFrame.get()));
+        }
+
+        @Override
+        public void onDrawFrame(Canvas canvas,
+                                int onscreenWidth,
+                                int onscreenHeight,
+                                float scaleBmpPxToCanvasPx,
+                                float scaleCanvasDensity,
+                                Object userContext) {
+            // nothing here, overlays are done in processFrame
         }
 
         public long getFrameCount() { return frameCount; }
