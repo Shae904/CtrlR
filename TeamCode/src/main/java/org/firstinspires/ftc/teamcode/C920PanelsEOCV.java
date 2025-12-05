@@ -25,12 +25,16 @@ import org.openftc.easyopencv.OpenCvWebcam;
 
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
-import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Configurable
 @TeleOp(name = "C920 EasyOpenCV (Panels)", group = "Vision")
@@ -69,7 +73,7 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         webcam.setPipeline(pipeline);
 
-        // start panels camera stream using this pipeline as source
+        // panels camera stream using this pipeline as source
         PanelsCameraStream.INSTANCE.startStream(pipeline, 30);
 
         webcam.setViewportRenderer(OpenCvCamera.ViewportRenderer.GPU_ACCELERATED);
@@ -124,8 +128,13 @@ public class C920PanelsEOCV extends LinearOpMode {
     public static class C920Pipeline extends OpenCvPipeline implements CameraStreamSource {
         private final Mat hsv = new Mat();
         private final Mat mask = new Mat();        // for generic slider mask / mean hsv
-        private final Mat maskGreen = new Mat();   // per-slot green mask
-        private final Mat maskPurple = new Mat();  // per-slot purple mask
+        private final Mat maskGreen = new Mat();   // reused for green masks
+        private final Mat maskPurple = new Mat();  // reused for purple masks
+
+        // for triangle masking
+        private final Mat slotMask = new Mat();
+        private final Mat slotGreen = new Mat();
+        private final Mat slotPurple = new Mat();
 
         private long frameCount = 0;
         private double lastH = 0, lastS = 0, lastV = 0;
@@ -140,11 +149,20 @@ public class C920PanelsEOCV extends LinearOpMode {
             PURPLE
         }
 
-        // TODO: change these rects to match where the 3 slots actually are in the image
+        // slot 0 = triangle (335, 400), (570, 480), (335, 480)
+        private final Point[] tri0Points = new Point[] {
+                new Point(395, 400),
+                new Point(570, 480),
+                new Point(395, 480)
+        };
+        private final MatOfPoint tri0Mat = new MatOfPoint(tri0Points);
+
+        // slot 1 & 2 = rectangles (your existing ones)
+        // index 0 is null because that slot is triangle-based
         private final Rect[] slotRects = new Rect[] {
-                new Rect(50, 200, 80, 80),   // slot 1
-                new Rect(170, 200, 80, 80),  // slot 2
-                new Rect(290, 200, 80, 80)   // slot 3
+                null,
+                new Rect(586, 320, 64, 160),  // slot 2
+                new Rect(170, 310, 160, 80)   // slot 3
         };
 
         private final SlotState[] slotStates = new SlotState[] {
@@ -179,9 +197,58 @@ public class C920PanelsEOCV extends LinearOpMode {
             lastS = mean.val[1];
             lastV = mean.val[2];
 
-            // slot classification
-            for (int i = 0; i < slotRects.length; i++) {
+            // full-frame color masks (for triangle)
+            Core.inRange(hsv, greenLower, greenUpper, maskGreen);
+            Core.inRange(hsv, purpleLower, purpleUpper, maskPurple);
+
+            // ===== slot 0: triangle =====
+            slotMask.create(hsv.rows(), hsv.cols(), CvType.CV_8UC1);
+            slotMask.setTo(new Scalar(0));
+            Imgproc.fillConvexPoly(slotMask, tri0Mat, new Scalar(255));
+
+            Core.bitwise_and(maskGreen, slotMask, slotGreen);
+            Core.bitwise_and(maskPurple, slotMask, slotPurple);
+
+            int greenCount0 = Core.countNonZero(slotGreen);
+            int purpleCount0 = Core.countNonZero(slotPurple);
+
+            SlotState state0;
+            if (greenCount0 < minPixelsForBall && purpleCount0 < minPixelsForBall) {
+                state0 = SlotState.EMPTY;
+            } else if (greenCount0 > purpleCount0) {
+                state0 = SlotState.GREEN;
+            } else {
+                state0 = SlotState.PURPLE;
+            }
+            slotStates[0] = state0;
+
+            // draw triangle
+            Scalar triColor;
+            switch (state0) {
+                case GREEN:
+                    triColor = new Scalar(0, 255, 0);
+                    break;
+                case PURPLE:
+                    triColor = new Scalar(255, 0, 255);
+                    break;
+                default:
+                    triColor = new Scalar(255, 255, 255);
+            }
+            Imgproc.polylines(
+                    input,
+                    Collections.singletonList(tri0Mat),
+                    true,
+                    triColor,
+                    2
+            );
+
+            // ===== slot 1 & 2: rectangles =====
+            for (int i = 1; i < slotRects.length; i++) {
                 Rect r = slotRects[i];
+                if (r == null) {
+                    slotStates[i] = SlotState.EMPTY;
+                    continue;
+                }
 
                 // clamp rect to image bounds
                 Rect bounded = new Rect(
@@ -217,7 +284,7 @@ public class C920PanelsEOCV extends LinearOpMode {
 
                 slotStates[i] = state;
 
-                // draw a rectangle showing classification on the output frame
+                // draw rect
                 Scalar boxColor;
                 switch (state) {
                     case GREEN:
@@ -275,3 +342,6 @@ public class C920PanelsEOCV extends LinearOpMode {
         public SlotState getSlotState(int index) { return slotStates[index]; }
     }
 }
+
+
+
