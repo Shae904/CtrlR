@@ -29,7 +29,6 @@ import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
-import com.bylazar.camerastream.PanelsCameraStream;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -71,7 +70,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         webcam.setPipeline(pipeline);
 
         // start panels camera stream using this pipeline as source
-        PanelsCameraStream.INSTANCE.startStream(pipeline);
+        PanelsCameraStream.INSTANCE.startStream(pipeline, 30);
 
         webcam.setViewportRenderer(OpenCvCamera.ViewportRenderer.GPU_ACCELERATED);
         webcam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
@@ -119,7 +118,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         }
 
         // stop panels camera stream
-        PanelsCameraStream.INSTANCE.stopStream(pipeline);
+        PanelsCameraStream.INSTANCE.stopStream();
     }
 
     public static class C920Pipeline extends OpenCvPipeline implements CameraStreamSource {
