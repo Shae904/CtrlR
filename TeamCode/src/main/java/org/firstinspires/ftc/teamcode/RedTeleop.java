@@ -23,6 +23,7 @@ public class RedTeleop extends LinearOpMode{
         limelight = robot.getLimelight();
         limelight.start();
         shootTime = new ElapsedTime();
+        robot.transfer.setPosition(0.23);
         // START
 
         // LOOP
@@ -49,6 +50,7 @@ public class RedTeleop extends LinearOpMode{
             double backRightPower = (rotY + rotX - rx) / denominator;
 
             robot.fr.setPower(frontRightPower);
+            robot.fl.setPower(frontLeftPower);
             robot.br.setPower(backRightPower);
             robot.bl.setPower(backLeftPower);
 

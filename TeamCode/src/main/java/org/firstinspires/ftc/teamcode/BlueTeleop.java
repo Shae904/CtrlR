@@ -23,6 +23,7 @@ public class BlueTeleop extends LinearOpMode{
         limelight = robot.getLimelight();
         limelight.start();
         shootTime = new ElapsedTime();
+        robot.transfer.setPosition(0.23);
         // START
 
         // LOOP
@@ -39,7 +40,7 @@ public class BlueTeleop extends LinearOpMode{
             double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
 
             double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
-            double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+            double rotY  = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
             rotX = rotX * 1.1;  // Counteract imperfect strafing
 
             double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);

@@ -18,6 +18,7 @@ import org.openftc.easyopencv.OpenCvWebcam;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
@@ -28,7 +29,7 @@ public class C920PanelsEOCV extends LinearOpMode {
     private OpenCvWebcam webcam;
     private TelemetryManager telemetryM;
 
-    //HSV values
+    // sliders in panels
     public static int lowerH = 0;
     public static int lowerS = 0;
     public static int lowerV = 0;
@@ -43,6 +44,7 @@ public class C920PanelsEOCV extends LinearOpMode {
     public void runOpMode() {
         PanelsConfigurables.INSTANCE.refreshClass(this);
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
         int cameraMonitorViewId = hardwareMap.appContext
                 .getResources().getIdentifier(
                         "cameraMonitorViewId",
@@ -65,7 +67,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
-                //streaming when cam opens
+                // streaming when cam opens
                 webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
             }
 
@@ -79,11 +81,18 @@ public class C920PanelsEOCV extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            //pipeline to panels? support live video feed??!
+            // telemetry to panels
             telemetryM.debug("Frame count: " + pipeline.getFrameCount());
             telemetryM.debug("Avg H: " + pipeline.getLastH());
             telemetryM.debug("Avg S: " + pipeline.getLastS());
             telemetryM.debug("Avg V: " + pipeline.getLastV());
+
+            // slot states
+            C920Pipeline.SlotState[] states = pipeline.getSlotStates();
+            telemetryM.debug("Slot 1: " + states[0]);
+            telemetryM.debug("Slot 2: " + states[1]);
+            telemetryM.debug("Slot 3: " + states[2]);
+
             telemetryM.update(telemetry);
 
             sleep(20);
@@ -97,37 +106,123 @@ public class C920PanelsEOCV extends LinearOpMode {
 
     public static class C920Pipeline extends OpenCvPipeline {
         private final Mat hsv = new Mat();
-        private final Mat mask = new Mat();
+        private final Mat mask = new Mat();        // for generic slider mask / mean HSV
+        private final Mat maskGreen = new Mat();   // per-slot green mask
+        private final Mat maskPurple = new Mat();  // per-slot purple mask
 
         private long frameCount = 0;
         private double lastH = 0, lastS = 0, lastV = 0;
+
+        public enum SlotState {
+            EMPTY,
+            GREEN,
+            PURPLE
+        }
+
+        // TODO: change these rects to match where the 3 slots actually are in the image
+        private final Rect[] slotRects = new Rect[] {
+                new Rect(50, 200, 80, 80),   // Slot 1
+                new Rect(170, 200, 80, 80),  // Slot 2
+                new Rect(290, 200, 80, 80)   // Slot 3
+        };
+
+        private final SlotState[] slotStates = new SlotState[] {
+                SlotState.EMPTY, SlotState.EMPTY, SlotState.EMPTY
+        };
+
+        // tuneHSV vals!!!!
+        private final Scalar greenLower = new Scalar(40, 70, 70);
+        private final Scalar greenUpper = new Scalar(90, 255, 255);
+
+        private final Scalar purpleLower = new Scalar(130, 60, 60);
+        private final Scalar purpleUpper = new Scalar(160, 255, 255);
+
+        // min colored pixels to detect ball. TUNE THIS.
+        private final int minPixelsForBall = 300;
 
         @Override
         public Mat processFrame(Mat input) {
             frameCount++;
 
-            // hsv convert
+
             Imgproc.cvtColor(input, hsv, Imgproc.COLOR_RGBA2RGB);
             Imgproc.cvtColor(hsv, hsv, Imgproc.COLOR_RGB2HSV);
 
+            //sliders
             Scalar lower = new Scalar(lowerH, lowerS, lowerV);
             Scalar upper = new Scalar(upperH, upperS, upperV);
-
             Core.inRange(hsv, lower, upper, mask);
 
-            //!!TEST!! MEAN HSV
             Scalar mean = Core.mean(hsv, mask);
             lastH = mean.val[0];
             lastS = mean.val[1];
             lastV = mean.val[2];
 
+            // slot classification
+            for (int i = 0; i < slotRects.length; i++) {
+                Rect r = slotRects[i];
 
-            return mask;
+                //
+                Rect bounded = new Rect(
+                        Math.max(0, r.x),
+                        Math.max(0, r.y),
+                        Math.min(r.width,  Math.max(0, hsv.cols() - r.x)),
+                        Math.min(r.height, Math.max(0, hsv.rows() - r.y))
+                );
+
+                if (bounded.width <= 0 || bounded.height <= 0) {
+                    slotStates[i] = SlotState.EMPTY;
+                    continue;
+                }
+
+                Mat slotHSV = hsv.submat(bounded);
+
+                // Green mask
+                Core.inRange(slotHSV, greenLower, greenUpper, maskGreen);
+                int greenCount = Core.countNonZero(maskGreen);
+
+                // Purple mask
+                Core.inRange(slotHSV, purpleLower, purpleUpper, maskPurple);
+                int purpleCount = Core.countNonZero(maskPurple);
+
+                SlotState state;
+                if (greenCount < minPixelsForBall && purpleCount < minPixelsForBall) {
+                    state = SlotState.EMPTY;
+                } else if (greenCount > purpleCount) {
+                    state = SlotState.GREEN;
+                } else {
+                    state = SlotState.PURPLE;
+                }
+
+                slotStates[i] = state;
+
+                // craw a rectangle showing classification on the output frame
+                Scalar boxColor;
+                switch (state) {
+                    case GREEN:
+                        boxColor = new Scalar(0, 255, 0);       // green box
+                        break;
+                    case PURPLE:
+                        boxColor = new Scalar(255, 0, 255);     // magenta box
+                        break;
+                    default:
+                        boxColor = new Scalar(255, 255, 255);   // white for empty
+                }
+                Imgproc.rectangle(input, bounded, boxColor, 2);
+
+                slotHSV.release();
+            }
+
+            // Return annotated RGB image so Panels Camera Stream shows boxes
+            return input;
         }
 
         public long getFrameCount() { return frameCount; }
         public double getLastH() { return lastH; }
         public double getLastS() { return lastS; }
         public double getLastV() { return lastV; }
+
+        public SlotState[] getSlotStates() { return slotStates; }
+        public SlotState getSlotState(int index) { return slotStates[index]; }
     }
 }

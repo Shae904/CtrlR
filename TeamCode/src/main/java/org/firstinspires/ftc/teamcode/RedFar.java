@@ -45,7 +45,7 @@ public class RedFar extends LinearOpMode {
 
     public enum PathState{PRELOAD,PPG,PGP,GPP,STOP}
 
-    private final PathState pathState = PathState.PRELOAD;
+    private PathState pathState = PathState.PRELOAD;
 
     public RedFar(Telemetry telemetry) {
         this.telemetry = telemetry;
@@ -151,7 +151,12 @@ public class RedFar extends LinearOpMode {
                     robot.setCycle(2);
                 }
                 shootThree(pattern);
+                pathState = PathState.STOP;
+
             case STOP:
+                robot.stopOuttake(0);
+                robot.setCycle(0);
+                robot.setIntakePower(0);
         }
     }
 
