@@ -24,7 +24,12 @@ import com.qualcomm.robotcore.util.Range;
 
 import java.util.List;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.openftc.easyopencv.OpenCvCamera;
+import org.openftc.easyopencv.OpenCvCameraFactory;
+import org.openftc.easyopencv.OpenCvCameraRotation;
+import org.openftc.easyopencv.OpenCvWebcam;
 
 /*
 Port Configs
@@ -65,13 +70,11 @@ public class Robot {
     public static double cycleTime = 0.4; // TODO Tune
     public static double outTime = 0.8; // TODO Tune
     private int var = 0;
-    private final Limelight3A limelight;
+    public final Limelight3A limelight;
 
-    public int purpleRThreshold = 128;
-    public int purpleBThreshold = 128;
-    public int greenGThreshold = 128;
+    public OpenCvWebcam webcam;
 
-    private final double transferPower = 0.9;
+    public C920PanelsEOCV.C920Pipeline pipeline;
     public Robot(LinearOpMode opMode) {
         //TODO
         // Set bounds for hood and cycle servos
@@ -124,7 +127,6 @@ public class Robot {
         launch.setDirection(Direction.REVERSE);
 
         transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");
-        transfer.scaleRange(0.23,0.67);
 
         // Limelight config
 
@@ -138,8 +140,37 @@ public class Robot {
         two = hardwareMap.get(ColorSensor.class, "csright");
 
 
+        // Initialize Vision
 
+        int cameraMonitorViewId = hardwareMap.appContext.getResources()
+                .getIdentifier("cameraMonitorViewId", "id",
+                        hardwareMap.appContext.getPackageName());
 
+        webcam = OpenCvCameraFactory.getInstance().createWebcam(
+                hardwareMap.get(WebcamName.class, "c920"), cameraMonitorViewId);
+
+        pipeline = new C920PanelsEOCV.C920Pipeline();
+        webcam.setPipeline(pipeline);
+
+        // gpu view is optional
+        webcam.setViewportRenderer(OpenCvWebcam.ViewportRenderer.GPU_ACCELERATED);
+        webcam.setViewportRenderingPolicy(OpenCvWebcam.ViewportRenderingPolicy.OPTIMIZE_VIEW);
+
+        opMode.telemetry.addLine("initializing camera...");
+        opMode.telemetry.update();
+
+        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+            @Override
+            public void onOpened() {
+                webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
+            }
+
+            @Override
+            public void onError(int errorCode) {
+                opMode.telemetry.addData("camera error", errorCode);
+                opMode.telemetry.update();
+            }
+        });
     }
 
     public Limelight3A getLimelight() {
@@ -152,8 +183,6 @@ public class Robot {
     public void setIntakePower(double intakePower){
         intake.setPower(intakePower);
     }
-    //TODO
-    // Add distance to hood angle mapping
     public void outtake(char color, double runtime){
         double Kv = 0.00039;
         double Kp = 0.001;
@@ -220,6 +249,8 @@ public class Robot {
         var = pos % 3;
         cycle.setPosition(cyclePos[var]);
     }
+
+    // This is for motor test
     public void setMotor(int motor, double power){
         if(motor == 0) {
             fl.setPower(power);
@@ -240,36 +271,11 @@ public class Robot {
     public double getLaunchVelo(){
         return launch.getVelocity();
     }
-    public int[] getColorReadings(){
-        int[] out = {0,0,0};
 
-        if(zero.red() >= purpleRThreshold && zero.blue() >= purpleBThreshold){
-            out[0] = 1;
-        }
-        else if(zero.green() >= greenGThreshold){
-            out[0] = -1;
-        }
-
-        if(one.red() >= purpleRThreshold && one.blue() >= purpleBThreshold){
-            out[1] = 1;
-        }
-        else if(one.green() >= greenGThreshold){
-            out[1] = -1;
-        }
-
-        if(two.red() >= purpleRThreshold && two.blue() >= purpleBThreshold){
-            out[2] = 1;
-        }
-        else if(two.green() >= greenGThreshold){
-            out[2] = -1;
-        }
-        return out;
-    }
-
-    public void setTransferOne() {
+    public void transferUp() {
         transfer.setPosition(transferOne);
     }
-    public void setTransferTwo(){
+    public void transferDown(){
         transfer.setPosition(transferTwo);
     }
 

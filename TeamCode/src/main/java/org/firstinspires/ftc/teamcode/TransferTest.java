@@ -21,10 +21,10 @@ public class TransferTest extends LinearOpMode{
         // LOOP
         while (opModeIsActive()) {
             if(gamepad1.y) {
-                robot.setTransferOne();
+                robot.transferDown();
             }
             if(gamepad1.b){
-                robot.setTransferTwo();
+                robot.transferUp();
             }
         }
     }

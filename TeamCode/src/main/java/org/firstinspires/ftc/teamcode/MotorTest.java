@@ -44,12 +44,6 @@ public class MotorTest extends LinearOpMode{
             if(gamepad1.dpad_up) {
                 robot.transfer.setPosition(1);
             }
-            if(gamepad1.right_bumper){
-                int[] readings = robot.getColorReadings();
-                telemetry.addData("Front Sensor Reading:", readings[0]);
-                telemetry.addData("Back Left Sensor Reading:", readings[1]);
-                telemetry.addData("Back Right Sensor Reading:", readings[2]);
-            }
             telemetry.update();
         }
     }

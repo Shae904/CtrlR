@@ -20,14 +20,13 @@ import java.util.List;
 public class RedTeleop extends LinearOpMode {
 
     // vision: c920 + eocv pipeline for 3-slot detection
-    private static final int NUM_SLOTS = 3;
 
     private OpenCvWebcam webcam;
     private C920PanelsEOCV.C920Pipeline pipeline;
 
     private final C920PanelsEOCV.C920Pipeline.SlotState[] prevColors =
-            new C920PanelsEOCV.C920Pipeline.SlotState[NUM_SLOTS];
-    private final int[] frameCount = new int[NUM_SLOTS];
+            new C920PanelsEOCV.C920Pipeline.SlotState[3];
+    private final int[] frameCount = new int[3];
 
     private boolean autoFire = false;
 
@@ -40,25 +39,68 @@ public class RedTeleop extends LinearOpMode {
     public static Robot robot;
     private int out = 0;
     private final ElapsedTime shootTime = new ElapsedTime();
-    private Limelight3A limelight;
 
     @Override
     public void runOpMode() throws InterruptedException {
+
+        robot.limelight.start();
         robot = new Robot(this);
 
-        initVision();
         initSlotConfirmation();
 
         waitForStart();
-
-        initLimelightAndShooter();
 
         // first try at reading pattern
         updatePatternFromLimelight();
 
         while (opModeIsActive()) {
-            drive();
-            handleIntake();
+            if (gamepad1.left_bumper) {
+                robot.imu.resetYaw();
+            }
+
+            double y = -gamepad1.left_stick_y;
+            double x = gamepad1.left_stick_x;
+            double rx = gamepad1.right_stick_x;
+
+            double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+
+            double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
+            double rotY  = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+            rotX = rotX * 1.1;  // Counteract imperfect strafing
+
+            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
+            double frontLeftPower = (rotY + rotX + rx) / denominator;
+            double backLeftPower = (rotY - rotX + rx) / denominator;
+            double frontRightPower = (rotY - rotX - rx) / denominator;
+            double backRightPower = (rotY + rotX - rx) / denominator;
+
+            robot.fr.setPower(frontRightPower);
+            robot.fl.setPower(frontLeftPower);
+            robot.br.setPower(backRightPower);
+            robot.bl.setPower(backLeftPower);
+
+            // Slow mode
+            if (gamepad1.right_bumper) {
+                frontLeftPower *= 0.4;
+                backLeftPower *= 0.4;
+                frontRightPower *= 0.4;
+                backRightPower *= 0.4;
+            }
+
+            // Intake
+            if (gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0) {
+                robot.setIntakePower(gamepad1.right_trigger - gamepad1.left_trigger);
+            }
+
+            if (gamepad2.y) {
+                robot.setCycle(0);
+            }
+            if (gamepad2.b) {
+                robot.setCycle(1);
+            }
+            if (gamepad2.x) {
+                robot.setCycle(2);
+            }
 
             // keep pattern updated while tags are in view
             updatePatternFromLimelight();
@@ -70,111 +112,17 @@ public class RedTeleop extends LinearOpMode {
             handleShooting(desiredColor);
 
             sendTelemetry();
-
-            idle();
         }
 
-        shutdownVision();
-    }
-
-    // init
-
-    private void initVision() {
-        int cameraMonitorViewId = hardwareMap.appContext.getResources()
-                .getIdentifier("cameraMonitorViewId", "id",
-                        hardwareMap.appContext.getPackageName());
-
-        webcam = OpenCvCameraFactory.getInstance().createWebcam(
-                hardwareMap.get(WebcamName.class, "c920"), cameraMonitorViewId);
-
-        pipeline = new C920PanelsEOCV.C920Pipeline();
-        webcam.setPipeline(pipeline);
-
-        // gpu view is optional
-        webcam.setViewportRenderer(OpenCvWebcam.ViewportRenderer.GPU_ACCELERATED);
-        webcam.setViewportRenderingPolicy(OpenCvWebcam.ViewportRenderingPolicy.OPTIMIZE_VIEW);
-
-        telemetry.addLine("initializing camera...");
-        telemetry.update();
-
-        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
-            @Override
-            public void onOpened() {
-                webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
-            }
-
-            @Override
-            public void onError(int errorCode) {
-                telemetry.addData("camera error", errorCode);
-                telemetry.update();
-            }
-        });
+        robot.webcam.stopStreaming();
+        robot.webcam.closeCameraDevice();
     }
 
     private void initSlotConfirmation() {
-        for (int i = 0; i < NUM_SLOTS; i++) {
+        for (int i = 0; i < 3; i++) {
             prevColors[i] = C920PanelsEOCV.C920Pipeline.SlotState.EMPTY;
             frameCount[i] = 0;
         }
-    }
-
-    private void initLimelightAndShooter() {
-        limelight = robot.getLimelight();
-        limelight.start();
-
-        shootTime.reset();
-        robot.transfer.setPosition(0.23);
-    }
-
-    private void shutdownVision() {
-        if (webcam != null) {
-            webcam.stopStreaming();
-            webcam.closeCameraDevice();
-        }
-    }
-
-    // DRIVE
-
-    private void drive() {
-        double y = -gamepad1.left_stick_y;    // forward = -y
-        double x = gamepad1.left_stick_x;
-        double rx = gamepad1.right_stick_x;
-
-        double botHeading = robot.imu.getRobotYawPitchRollAngles()
-                .getYaw(AngleUnit.RADIANS);
-
-        // field centric transform
-        double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
-        double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
-
-        // strafe compensation
-        rotX *= 1.1;
-
-        double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
-
-        double frontLeftPower  = (rotY + rotX + rx) / denominator;
-        double backLeftPower   = (rotY - rotX + rx) / denominator;
-        double frontRightPower = (rotY - rotX - rx) / denominator;
-        double backRightPower  = (rotY + rotX - rx) / denominator;
-
-        robot.fr.setPower(frontRightPower);
-        robot.fl.setPower(frontLeftPower);
-        robot.br.setPower(backRightPower);
-        robot.bl.setPower(backLeftPower);
-    }
-
-    // ==================== intake ====================
-
-    private void handleIntake() {
-        double power = 0.0;
-
-        if (gamepad1.right_trigger > 0 || gamepad1.left_trigger > 0) {
-            power = gamepad1.right_trigger - gamepad1.left_trigger;
-        } else if (gamepad2.right_trigger > 0 || gamepad2.left_trigger > 0) {
-            power = gamepad2.right_trigger - gamepad2.left_trigger;
-        }
-
-        robot.setIntakePower(power);
     }
 
     // ==================== shooting / indexer ====================
@@ -219,7 +167,6 @@ public class RedTeleop extends LinearOpMode {
         attemptAutoShot(desiredColor);
 
         // still allow manual indexer moves
-        handleManualIndexing();
     }
 
     private void attemptAutoShot(C920PanelsEOCV.C920Pipeline.SlotState desiredColor) {
@@ -237,22 +184,10 @@ public class RedTeleop extends LinearOpMode {
         startAutoShotFromSlot(chosenSlot);
     }
     //andrew aburustum is a freaking goober
-    private void handleManualIndexing() {
-        if (gamepad2.y) {
-            robot.setCycle(0);
-        }
-        if (gamepad2.b) {
-            robot.setCycle(1);
-        }
-        if (gamepad2.x) {
-            robot.setCycle(2);
-        }
-    }
-
     // slot confirmation
 
     private void updateSlotConfirmation(C920PanelsEOCV.C920Pipeline.SlotState[] states) {
-        for (int i = 0; i < NUM_SLOTS; i++) {
+        for (int i = 0; i < 3; i++) {
             C920PanelsEOCV.C920Pipeline.SlotState current = states[i];
 
             if (current != C920PanelsEOCV.C920Pipeline.SlotState.EMPTY) {
@@ -274,14 +209,14 @@ public class RedTeleop extends LinearOpMode {
                                  C920PanelsEOCV.C920Pipeline.SlotState desiredColor) {
 
         if (desiredColor != C920PanelsEOCV.C920Pipeline.SlotState.EMPTY) {
-            for (int i = 0; i < NUM_SLOTS; i++) {
+            for (int i = 0; i < 3; i++) {
                 if (frameCount[i] >= 3 && states[i] == desiredColor) {
                     return i;
                 }
             }
         }
 
-        for (int i = 0; i < NUM_SLOTS; i++) {
+        for (int i = 0; i < 3; i++) {
             if (frameCount[i] >= 3 &&
                     states[i] != C920PanelsEOCV.C920Pipeline.SlotState.EMPTY) {
                 return i;
@@ -306,9 +241,9 @@ public class RedTeleop extends LinearOpMode {
     // LIMELIGHT+PATTERN
 
     private void updatePatternFromLimelight() {
-        if (limelight == null) return;
+        if (robot.limelight == null) return;
 
-        LLResult result = limelight.getLatestResult();
+        LLResult result = robot.limelight.getLatestResult();
         if (result == null) return;
 
         List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
