@@ -132,7 +132,7 @@ public class BlueFar extends LinearOpMode {
         double cycleTime = 0.2; // TODO Copy from Robot after tuning
         double outTime = 0.4; // TODO Copy from Robot after tuning
         while(shootTime.seconds() < 3 * cycleTime + 3 * outTime){
-            robot.outtake('b',shootTime.seconds());
+            robot.outtake('b');
         }
         while(shootTime.seconds() >= 3 * cycleTime + 3 * outTime) {
             robot.stopOuttake(0);

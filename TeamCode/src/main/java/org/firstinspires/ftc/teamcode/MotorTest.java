@@ -41,8 +41,11 @@ public class MotorTest extends LinearOpMode{
                 robot.setLaunch(1);
                 telemetry.addData("Max Velocity",robot.getLaunchVelo());
             }
-            if(gamepad1.dpad_up) {
-                robot.transfer.setPosition(1);
+            if(gamepad1.right_bumper){
+                robot.transferUp();
+            }
+            else{
+                robot.transferDown();
             }
             telemetry.update();
         }

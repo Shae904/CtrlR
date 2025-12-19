@@ -66,7 +66,7 @@ public class BlueTeleop extends LinearOpMode{
                 if (out == 0) {
                     shootTime.reset();
                 }
-                robot.outtake('b', shootTime.seconds());
+                robot.outtake('b');
                 out = 1;
             } else {
                 robot.stopOuttake(out);

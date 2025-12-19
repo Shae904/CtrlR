@@ -65,10 +65,9 @@ public class Robot {
     public static double transferMax = 0.1;
     public static LinearOpMode opMode;
     public final ColorSensor zero,one,two;
-    public static  double[] cyclePos = {0,0.32,0.59};
-    public static double[] shootPos = {0.14,0.45,0.74};
-    public static double cycleTime = 0.4; // TODO Tune
-    public static double outTime = 0.8; // TODO Tune
+    public static double[] cyclePos = {0,0.32,0.59};
+    public static double[] shootPos = {0.16,0.47,0.71};
+
     private int var = 0;
     public final Limelight3A limelight;
 
@@ -183,7 +182,7 @@ public class Robot {
     public void setIntakePower(double intakePower){
         intake.setPower(intakePower);
     }
-    public void outtake(char color, double runtime){
+    public void outtake(char color){
         double Kv = 0.00039;
         double Kp = 0.001;
         double goalHeight = 29.5;
@@ -197,7 +196,6 @@ public class Robot {
         else{
             targetId = 20;
         }
-//        cycle.setPosition(shootPos[var]);
         LLResult result = limelight.getLatestResult();
         List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
         for (LLResultTypes.FiducialResult fiducial : fiducials) {
@@ -209,32 +207,12 @@ public class Robot {
             }
         }
         x = (goalHeight - limelightHeight) / Math.tan(angle);
-        double targetVelo = 394.56267*x*Math.pow((0.25183*x-0.17955),-0.5);
+        double targetVelo = 160.1826 * x * Math.pow(1.6003345*x-29,-0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
         double power = Range.clip(ff + p, -0.2, 1.0);
-        cycle.setPosition(shootPos[var]);
         launch.setPower(power);
-        while(runtime >= cycleTime && runtime < cycleTime + outTime){
-            transfer.setPosition(1);
-        }
-        while(runtime >= cycleTime + outTime && runtime < 2 * cycleTime + outTime) {
-            transfer.setPosition(0);
-            var += 1;
-            setCycle(var);
-        }
-        while(runtime >= 2 * cycleTime + outTime && runtime < 2 * cycleTime + 2 * outTime){
-            transfer.setPosition(1);
-        }
-        while(runtime >= 2 * cycleTime + 2 * outTime && runtime < 3 * cycleTime + 2 * outTime) {
-            transfer.setPosition(0);
-            var += 1;
-            setCycle(var);
-        }
-        while(runtime >= 3 * cycleTime + 2 * outTime){
-            transfer.setPosition(1);
-        }
     }
 
     public void stopOuttake(int reset){
@@ -242,12 +220,14 @@ public class Robot {
             var += 1;
             setCycle(var);
         }
-        transfer.setPosition(0);
+        transferDown();
         launch.setPower(0);
     }
     public void setCycle(int pos){
-        var = pos % 3;
-        cycle.setPosition(cyclePos[var]);
+        cycle.setPosition(cyclePos[pos]);
+    }
+    public void setShootCycle(int pos){
+        cycle.setPosition(pos);
     }
 
     // This is for motor test

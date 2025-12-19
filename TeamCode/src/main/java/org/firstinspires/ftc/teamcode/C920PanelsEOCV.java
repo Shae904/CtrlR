@@ -338,7 +338,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         public double getLastS() { return lastS; }
         public double getLastV() { return lastV; }
 
-        public SlotState[] getSlotStates() { return slotStates; }
+         public SlotState[] getSlotStates() { return slotStates; }
         public SlotState getSlotState(int index) { return slotStates[index]; }
     }
 }
