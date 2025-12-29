@@ -17,8 +17,10 @@ public class RedTeleop extends LinearOpMode {
         INTAKE
     }
     public RunState state;
+
     public static double cycleTime = 0.4; // TODO Tune
     public static double outTime = 0.8; // TODO Tune
+
     private final ElapsedTime shootTime = new ElapsedTime();
     private int shooting = 0;
 
@@ -36,7 +38,6 @@ public class RedTeleop extends LinearOpMode {
 
         while (opModeIsActive()) {
             if (gamepad1.left_bumper) {
-
                 robot.imu.resetYaw();
             }
 
@@ -63,27 +64,25 @@ public class RedTeleop extends LinearOpMode {
 
             if (gamepad2.a) {
                 state = RunState.INTAKE;
+                shooting = 0;
             }
             if(gamepad2.x){
                 state = RunState.SHOOT0;
                 if(shooting == 0){
                     shootTime.reset();
                 }
-                shooting = 1;
             }
             if(gamepad2.y){
                 state = RunState.SHOOT1;
                 if(shooting == 0){
                     shootTime.reset();
                 }
-                shooting = 1;
             }
             if(gamepad2.b){
                 state = RunState.SHOOT2;
                 if(shooting == 0){
                     shootTime.reset();
                 }
-                shooting = 1;
             }
             switch(state){
                 case INTAKE:
@@ -93,42 +92,58 @@ public class RedTeleop extends LinearOpMode {
                     robot.intake.setPower(gamepad2.right_trigger - gamepad2.left_trigger);
                     break;
                 case SHOOT0:
+                    if(shooting == 0){
+                        shooting = 1;
+                    }
+                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
-                        robot.setShootCycle(0);
+                        robot.setCycle(1);
                     }
                     else if(shootTime.seconds() < cycleTime + outTime){
-                        robot.outtake('r');
+                        robot.transferUp();
                     }
                     else{
                       robot.transferDown();
+                      shooting = 0;
                     }
                     break;
                 case SHOOT1:
+                    if(shooting == 0){
+                        shooting = 1;
+                    }
+                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
-                        robot.setShootCycle(1);
+                        robot.setCycle(2);
                     }
                     else if(shootTime.seconds() < cycleTime + outTime){
-                        robot.outtake('r');
+                        robot.transferUp();
                     }
                     else{
                         robot.transferDown();
+                        shooting = 0;
                     }
                     break;
                 case SHOOT2:
+                    if(shooting == 0){
+                        shooting = 1;
+                    }
+                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
-                        robot.setShootCycle(2);
+                        robot.setCycle(0);
                     }
                     else if(shootTime.seconds() < cycleTime + outTime){
-                        robot.outtake('r');
+                        robot.transferUp();
                     }
                     else{
                         robot.transferDown();
+                        shooting = 0;
                     }
                     break;
             }
         }
         robot.webcam.stopStreaming();
         robot.webcam.closeCameraDevice();
+        robot.limelight.close();
     }
 
 }

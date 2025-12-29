@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import android.graphics.Color;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -17,7 +16,6 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
-import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.Range;
@@ -61,14 +59,13 @@ public class Robot {
     public static double transferOne = 0;
     public static double transferTwo = 0;
     public final ServoImplEx transfer,cycle;
-    public static double transferMin = 0;
-    public static double transferMax = 0.1;
     public static LinearOpMode opMode;
     public final ColorSensor zero,one,two;
     public static double[] cyclePos = {0,0.32,0.59};
-    public static double[] shootPos = {0.16,0.47,0.71};
 
-    private int var = 0;
+
+
+    public int cpos = 0;
     public final Limelight3A limelight;
 
     public OpenCvWebcam webcam;
@@ -171,14 +168,9 @@ public class Robot {
             }
         });
     }
-
     public Limelight3A getLimelight() {
         return limelight;
      }
-
-    public double getHeading() {
-        return this.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-    }
     public void setIntakePower(double intakePower){
         intake.setPower(intakePower);
     }
@@ -206,7 +198,7 @@ public class Robot {
                 break;
             }
         }
-        x = (goalHeight - limelightHeight) / Math.tan(angle);
+        x = (goalHeight - limelightHeight) / Math.tan(angle) + 8; // 8 added to account for distance between limelight and shooter
         double targetVelo = 160.1826 * x * Math.pow(1.6003345*x-29,-0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
@@ -217,19 +209,16 @@ public class Robot {
 
     public void stopOuttake(int reset){
         if(reset == 1){
-            var += 1;
-            setCycle(var);
+            cpos += 1;
+            setCycle(cpos);
         }
         transferDown();
         launch.setPower(0);
     }
     public void setCycle(int pos){
+        cpos = pos;
         cycle.setPosition(cyclePos[pos]);
     }
-    public void setShootCycle(int pos){
-        cycle.setPosition(pos);
-    }
-
     // This is for motor test
     public void setMotor(int motor, double power){
         if(motor == 0) {
