@@ -127,19 +127,9 @@ public class RedFar extends LinearOpMode {
         }
     }
 
-    public void shootThree(int pattern){
-        ElapsedTime shootTime = new ElapsedTime();
-        double cycleTime = 0.4; // TODO Copy from Robot after tuning
-        double outTime = 0.8; // TODO Copy from Robot after tuning
-        while(shootTime.seconds() < 3 * cycleTime + 3 * outTime){
-            robot.outtake('r');
-        }
-        while(shootTime.seconds() >= 3 * cycleTime + 3 * outTime) {
-            robot.stopOuttake(0);
-            robot.setCycle(0);
-        }
-    }
+    public void shoot(int target){
 
+    }
     public void autonomousPathUpdate(){
         switch (pathState){
             case PRELOAD:
@@ -150,7 +140,6 @@ public class RedFar extends LinearOpMode {
                 else if(pattern == 23){
                     robot.setCycle(2);
                 }
-                shootThree(pattern);
                 pathState = PathState.STOP;
 
             case STOP:

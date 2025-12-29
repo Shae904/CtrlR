@@ -23,7 +23,6 @@ import com.qualcomm.robotcore.util.Range;
 import java.util.List;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
@@ -42,14 +41,8 @@ Motors
 2 - launch
 3 - intake
 Servos
-0 - transfer
+1 - transfer
 4 - cycle
-IUC Bus 0
-0 - zero
-IUC Bus 1
-0 - one
-IUC Bus 2
-0 - two
  */
 @Configurable
 public class Robot {
@@ -60,7 +53,6 @@ public class Robot {
     public static double transferTwo = 0;
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
-    public final ColorSensor zero,one,two;
     public static double[] cyclePos = {0,0.32,0.59};
 
 
@@ -131,10 +123,6 @@ public class Robot {
 
         // Color Sensor Config
 
-        zero = hardwareMap.get(ColorSensor.class, "csfront");
-        one = hardwareMap.get(ColorSensor.class, "csleft");
-        two = hardwareMap.get(ColorSensor.class, "csright");
-
 
         // Initialize Vision
 
@@ -175,8 +163,8 @@ public class Robot {
         intake.setPower(intakePower);
     }
     public void outtake(char color){
-        double Kv = 0.00039;
-        double Kp = 0.001;
+        double Kv = 0.000069;
+        double Kp = 0.0001;
         double goalHeight = 29.5;
         double limelightHeight = 10.5;
         double angle = 0;
@@ -199,11 +187,11 @@ public class Robot {
             }
         }
         x = (goalHeight - limelightHeight) / Math.tan(angle) + 8; // 8 added to account for distance between limelight and shooter
-        double targetVelo = 160.1826 * x * Math.pow(1.6003345*x-29,-0.5);
+        double targetVelo = 114.4024 * x * Math.pow(0.9035693 * x - 29,0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
-        double power = Range.clip(ff + p, -0.2, 1.0);
+        double power = Range.clip(ff + p, -0.4, 1.0);
         launch.setPower(power);
     }
 
@@ -236,9 +224,6 @@ public class Robot {
     }
     public void setLaunch(double power){
         launch.setPower(power);
-    }
-    public double getLaunchVelo(){
-        return launch.getVelocity();
     }
 
     public void transferUp() {

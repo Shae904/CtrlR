@@ -3,19 +3,13 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
 @TeleOp(name = "Motor Test")
 public class MotorTest extends LinearOpMode{
     Robot robot;
-    public static double transfer = 0;
-    //LimeLight3A limelight;
     @Override
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         waitForStart();
-        //limelight = robot.getLimelight();
-        //limelight.start();
         // START
 
         // LOOP
@@ -39,7 +33,6 @@ public class MotorTest extends LinearOpMode{
 
             if(gamepad1.left_bumper){
                 robot.setLaunch(1);
-                telemetry.addData("Max Velocity",robot.getLaunchVelo());
             }
             if(gamepad1.right_bumper){
                 robot.transferUp();
@@ -47,6 +40,7 @@ public class MotorTest extends LinearOpMode{
             else{
                 robot.transferDown();
             }
+            telemetry.addData("Velocity(tps): ",robot.launch.getVelocity());
             telemetry.update();
         }
     }

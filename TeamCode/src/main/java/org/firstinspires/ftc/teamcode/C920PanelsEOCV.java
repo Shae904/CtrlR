@@ -151,9 +151,9 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         // slot 0 = triangle (335, 400), (570, 480), (335, 480)
         private final Point[] tri0Points = new Point[] {
-                new Point(395, 400),
-                new Point(570, 480),
-                new Point(395, 480)
+                new Point(0, 330),
+                new Point(0, 420),
+                new Point(120, 420)
         };
         private final MatOfPoint tri0Mat = new MatOfPoint(tri0Points);
 
@@ -161,8 +161,8 @@ public class C920PanelsEOCV extends LinearOpMode {
         // index 0 is null because that slot is triangle-based
         private final Rect[] slotRects = new Rect[] {
                 null,
-                new Rect(586, 320, 64, 160),  // slot 2
-                new Rect(170, 310, 160, 80)   // slot 3
+                new Rect(620, 400, 20, 80),  // slot 1
+                new Rect(170, 310, 160, 80)   // slot 2
         };
 
         private final SlotState[] slotStates = new SlotState[] {
