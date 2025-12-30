@@ -53,6 +53,7 @@ public class Robot {
     public static double transferTwo = 0.38;
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
+    public double x = 0;
     public static double[] cyclePos = {0.055,0.35,0.63};
 
     public int cpos = 0;
@@ -62,8 +63,6 @@ public class Robot {
 
     public C920PanelsEOCV.C920Pipeline pipeline;
     public Robot(LinearOpMode opMode) {
-        //TODO
-        // Set bounds for hood and cycle servos
         Robot.opMode = opMode;
             HardwareMap hardwareMap = opMode.hardwareMap;
         // Drivetrain
@@ -99,9 +98,6 @@ public class Robot {
         cycle =  (ServoImplEx) hardwareMap.get(Servo.class,"cycle");
 
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-
-
-
         intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
@@ -160,13 +156,12 @@ public class Robot {
     public void setIntakePower(double intakePower){
         intake.setPower(intakePower);
     }
-    public void outtake(char color){
-        double Kv = 0.000069;
-        double Kp = 0.0001;
+    public double outtake(char color){
+        double Kv = 0.00039;
+        double Kp = 0.001;
         double goalHeight = 29.5;
         double limelightHeight = 10.5;
         double angle = 0;
-        double x;
         int targetId;
         if(color == 'r'){
             targetId = 24;
@@ -184,13 +179,15 @@ public class Robot {
                 break;
             }
         }
-        x = (goalHeight - limelightHeight) / Math.tan(angle) + 8; // 8 added to account for distance between limelight and shooter
-        double targetVelo = 114.4024 * x * Math.pow(0.9035693 * x - 29,0.5);
+        x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
+        // 6 added to account for distance between limelight and shooter
+        double targetVelo = 22.07628 * x * Math.pow(0.9035693 * x - 29,0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
         double power = Range.clip(ff + p, -0.4, 1.0);
         launch.setPower(power);
+        return x;
     }
 
     public void stopOuttake(int reset){

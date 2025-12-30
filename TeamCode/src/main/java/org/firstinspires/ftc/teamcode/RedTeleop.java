@@ -8,7 +8,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name = "Red Teleop")
 public class RedTeleop extends LinearOpMode {
-    // robot + shooter state
     public static Robot robot;
     public enum  RunState{
         SHOOT0,
@@ -26,15 +25,13 @@ public class RedTeleop extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-
-        robot.limelight.start();
         robot = new Robot(this);
+        robot.limelight.start();
         state = RunState.INTAKE;
         shootTime.reset();
+        telemetry.setMsTransmissionInterval(50);
 
         waitForStart();
-
-        // first try at reading pattern
 
         while (opModeIsActive()) {
             if (gamepad1.left_bumper) {
@@ -45,22 +42,28 @@ public class RedTeleop extends LinearOpMode {
             double x = gamepad1.left_stick_x;
             double rx = gamepad1.right_stick_x;
 
-            double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+            /*
+            code for if we wanted to use field centric movement
+            x = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
+            y = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+            */
+            x = x * 1.1;  // Counteract imperfect strafing
 
-            double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
-            double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
-            rotX = rotX * 1.1;  // Counteract imperfect strafing
-
-            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
-            double frontLeftPower = (rotY + rotX + rx) / denominator;
-            double backLeftPower = (rotY - rotX + rx) / denominator;
-            double frontRightPower = (rotY - rotX - rx) / denominator;
-            double backRightPower = (rotY + rotX - rx) / denominator;
+            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+            double frontLeftPower = (y + x + rx) / denominator;
+            double backLeftPower = (y - x + rx) / denominator;
+            double frontRightPower = (y - x - rx) / denominator;
+            double backRightPower = (y + x - rx) / denominator;
 
             robot.fr.setPower(frontRightPower);
             robot.fl.setPower(frontLeftPower);
             robot.br.setPower(backRightPower);
             robot.bl.setPower(backLeftPower);
+
+            double out = robot.outtake('r'); // Constantly set flywheel power
+            telemetry.addData("Distance to goal",out);
+            telemetry.addData("Outtake wheel speed",robot.launch.getVelocity());
+            telemetry.update();
 
             if (gamepad2.a) {
                 state = RunState.INTAKE;
@@ -84,18 +87,28 @@ public class RedTeleop extends LinearOpMode {
                     shootTime.reset();
                 }
             }
+            if(gamepad2.right_bumper){
+                robot.transferUp();
+            }
+            else{
+                robot.transferDown();
+            }
             switch(state){
                 case INTAKE:
                     robot.setCycle(0);
-                    robot.setLaunch(0);
                     robot.transferDown();
-                    robot.intake.setPower(gamepad2.right_trigger - gamepad2.left_trigger);
+                    if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
+                        robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
+                    }
+                    else{
+                        robot.intake.setPower(0);
+                    }
                     break;
                 case SHOOT0:
-                    if(shooting == 0){
+                    robot.setCycle(1);
+                    /*if(shooting == 0){
                         shooting = 1;
                     }
-                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
                         robot.setCycle(1);
                     }
@@ -105,13 +118,13 @@ public class RedTeleop extends LinearOpMode {
                     else{
                       robot.transferDown();
                       shooting = 0;
-                    }
+                    }*/
                     break;
                 case SHOOT1:
-                    if(shooting == 0){
+                    robot.setCycle(2);
+                    /*if(shooting == 0){
                         shooting = 1;
                     }
-                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
                         robot.setCycle(2);
                     }
@@ -121,13 +134,13 @@ public class RedTeleop extends LinearOpMode {
                     else{
                         robot.transferDown();
                         shooting = 0;
-                    }
+                    }*/
                     break;
                 case SHOOT2:
-                    if(shooting == 0){
+                    robot.setCycle(0);
+                    /*if(shooting == 0){
                         shooting = 1;
                     }
-                    robot.outtake('r');
                     if(shootTime.seconds() < cycleTime){
                         robot.setCycle(0);
                     }
@@ -137,7 +150,7 @@ public class RedTeleop extends LinearOpMode {
                     else{
                         robot.transferDown();
                         shooting = 0;
-                    }
+                    }*/
                     break;
             }
         }

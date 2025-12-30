@@ -151,9 +151,10 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         // slot 0 = triangle (335, 400), (570, 480), (335, 480)
         private final Point[] tri0Points = new Point[] {
-                new Point(0, 330),
-                new Point(0, 420),
-                new Point(120, 420)
+                new Point(0, 120),
+                new Point(0, 400),
+                new Point(120, 400),
+                new Point(120, 120)
         };
         private final MatOfPoint tri0Mat = new MatOfPoint(tri0Points);
 
@@ -161,8 +162,8 @@ public class C920PanelsEOCV extends LinearOpMode {
         // index 0 is null because that slot is triangle-based
         private final Rect[] slotRects = new Rect[] {
                 null,
-                new Rect(620, 400, 20, 80),  // slot 1
-                new Rect(170, 310, 160, 80)   // slot 2
+                new Rect(420, 400, 220, 80),  // slot 1
+                new Rect(400, 90, 180, 70)   // slot 2
         };
 
         private final SlotState[] slotStates = new SlotState[] {
@@ -170,8 +171,8 @@ public class C920PanelsEOCV extends LinearOpMode {
         };
 
         // tune hsv vals
-        private final Scalar greenLower = new Scalar(40, 70, 70);
-        private final Scalar greenUpper = new Scalar(90, 255, 255);
+        private final Scalar greenLower = new Scalar(75, 105, 150);
+        private final Scalar greenUpper = new Scalar(93, 255, 255);
 
         private final Scalar purpleLower = new Scalar(130, 60, 60);
         private final Scalar purpleUpper = new Scalar(160, 255, 255);

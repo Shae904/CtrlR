@@ -22,6 +22,15 @@ public class CycleTest extends LinearOpMode{
             if(gamepad1.a){
                 robot.cycle.setPosition(cyclePos);
             }
+            if(gamepad1.x){
+                robot.setCycle(0);
+            }
+            if(gamepad1.y){
+                robot.setCycle(1);
+            }
+            if(gamepad1.b){
+                robot.setCycle(2);
+            }
         }
     }
 }
