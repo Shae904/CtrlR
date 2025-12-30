@@ -50,12 +50,10 @@ public class Robot {
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake,launch;
     public static double transferOne = 0;
-    public static double transferTwo = 0;
+    public static double transferTwo = 0.38;
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
-    public static double[] cyclePos = {0,0.32,0.59};
-
-
+    public static double[] cyclePos = {0.055,0.35,0.63};
 
     public int cpos = 0;
     public final Limelight3A limelight;
@@ -104,14 +102,14 @@ public class Robot {
 
 
 
-        intake.setMode(RunMode.RUN_USING_ENCODER);
+        intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
         // Outtake config
 
         launch = hardwareMap.get(DcMotorEx.class, "launch");
-        launch.setMode(RunMode.RUN_USING_ENCODER);
-        launch.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+        launch.setMode(RunMode.RUN_WITHOUT_ENCODER);
+        launch.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
         launch.setDirection(Direction.REVERSE);
 
         transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");

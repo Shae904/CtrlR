@@ -10,11 +10,11 @@ public class MotorTest extends LinearOpMode{
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         waitForStart();
+        telemetry.setMsTransmissionInterval(50);
         // START
 
         // LOOP
         while (opModeIsActive()) {
-
             if (gamepad1.left_bumper) {
                 robot.imu.resetYaw();
             }
@@ -40,7 +40,7 @@ public class MotorTest extends LinearOpMode{
             else{
                 robot.transferDown();
             }
-            telemetry.addData("Velocity(tps): ",robot.launch.getVelocity());
+            telemetry.addData("velocity",robot.launch.getVelocity());
             telemetry.update();
         }
     }
