@@ -53,7 +53,6 @@ public class Robot {
     public static double transferTwo = 0.38;
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
-    public double x = 0;
     public static double[] cyclePos = {0.055,0.35,0.63};
 
     public int cpos = 0;
@@ -157,7 +156,7 @@ public class Robot {
         intake.setPower(intakePower);
     }
     public double outtake(char color){
-        double Kv = 0.00039;
+        double Kv = 0.00036;
         double Kp = 0.001;
         double goalHeight = 29.5;
         double limelightHeight = 10.5;
@@ -179,7 +178,7 @@ public class Robot {
                 break;
             }
         }
-        x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
+        double x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
         // 6 added to account for distance between limelight and shooter
         double targetVelo = 22.07628 * x * Math.pow(0.9035693 * x - 29,0.5);
         double ff = Kv * targetVelo;
@@ -187,7 +186,7 @@ public class Robot {
         double p = Kp * (targetVelo - currentVelo);
         double power = Range.clip(ff + p, -0.4, 1.0);
         launch.setPower(power);
-        return x;
+        return targetVelo;
     }
 
     public void stopOuttake(int reset){

@@ -61,27 +61,28 @@ public class RedTeleop extends LinearOpMode {
             robot.bl.setPower(backLeftPower);
 
             double out = robot.outtake('r'); // Constantly set flywheel power
-            telemetry.addData("Distance to goal",out);
-            telemetry.addData("Outtake wheel speed",robot.launch.getVelocity());
+            telemetry.addData("Timer", shootTime);
+            telemetry.addData("Target velocity",out);
+            telemetry.addData("Current velocity",robot.launch.getVelocity());
             telemetry.update();
 
             if (gamepad2.a) {
                 state = RunState.INTAKE;
                 shooting = 0;
             }
-            if(gamepad2.x){
+            else if(gamepad2.x){
                 state = RunState.SHOOT0;
                 if(shooting == 0){
                     shootTime.reset();
                 }
             }
-            if(gamepad2.y){
+            else if(gamepad2.y){
                 state = RunState.SHOOT1;
                 if(shooting == 0){
                     shootTime.reset();
                 }
             }
-            if(gamepad2.b){
+            else if(gamepad2.b){
                 state = RunState.SHOOT2;
                 if(shooting == 0){
                     shootTime.reset();
