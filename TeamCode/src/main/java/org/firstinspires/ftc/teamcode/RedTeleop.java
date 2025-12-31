@@ -3,9 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
 @TeleOp(name = "Red Teleop")
 public class RedTeleop extends LinearOpMode {
     public static Robot robot;
@@ -98,7 +95,10 @@ public class RedTeleop extends LinearOpMode {
                 case INTAKE:
                     robot.setCycle(0);
                     robot.transferDown();
-                    if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
+                    if(gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
+                        robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
+                    }
+                    else if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
                         robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
                     }
                     else{

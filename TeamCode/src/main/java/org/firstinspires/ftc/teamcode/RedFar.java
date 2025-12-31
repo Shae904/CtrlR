@@ -39,7 +39,6 @@ public class RedFar extends LinearOpMode {
     public Follower follower;
     public static int pattern = 21;
     public Limelight3A limelight;
-    public static int target = 24;
     public final Telemetry telemetry;
     public int[] colors;
 

@@ -5,7 +5,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -54,7 +53,7 @@ public class Robot {
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
     public static double[] cyclePos = {0.055,0.35,0.63};
-
+    double x = 0;
     public int cpos = 0;
     public final Limelight3A limelight;
 
@@ -114,8 +113,6 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
-        // Color Sensor Config
-
 
         // Initialize Vision
 
@@ -160,7 +157,7 @@ public class Robot {
         double Kp = 0.001;
         double goalHeight = 29.5;
         double limelightHeight = 10.5;
-        double angle = 0;
+        double angle = -1;
         int targetId;
         if(color == 'r'){
             targetId = 24;
@@ -174,17 +171,20 @@ public class Robot {
             int id = fiducial.getFiducialId(); // The ID number of the fiducial
             double y = fiducial.getTargetYDegrees(); // Where it is (up-down)
             if (id == targetId) {
-                angle = Math.toRadians(y);
+                angle = Math.toRadians(y + 28);
+                // 28 is limelight facing angle
                 break;
             }
         }
-        double x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
+        if(angle != -1) {
+            x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
+        }
         // 6 added to account for distance between limelight and shooter
-        double targetVelo = 22.07628 * x * Math.pow(0.9035693 * x - 29,0.5);
+        double targetVelo = 127 * x * Math.pow(0.9035693 * x - 29,-0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
-        double power = Range.clip(ff + p, -0.4, 1.0);
+        double power = Range.clip(ff + p, -0.2, 1.0);
         launch.setPower(power);
         return targetVelo;
     }
