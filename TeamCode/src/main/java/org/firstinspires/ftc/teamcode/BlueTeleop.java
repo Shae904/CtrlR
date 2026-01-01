@@ -16,7 +16,7 @@ public class BlueTeleop extends LinearOpMode {
     }
     public RunState state;
 
-    public static double cycleTime = 0.4; // TODO Tune
+    public static double cycleTime = 0.5; // TODO Tune
     public static double outTime = 0.8; // TODO Tune
 
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
@@ -76,15 +76,13 @@ public class BlueTeleop extends LinearOpMode {
             }
             else if(gamepad2.x){
                 state = RunState.CYCLEGREEN;
-                if(shooting == 0){
-                    shootTime.reset();
-                }
+                shooting = 0;
+                shootTime.reset();
             }
             else if(gamepad2.y){
                 state = RunState.CYCLEPURPLE;
-                if(shooting == 0){
-                    shootTime.reset();
-                }
+                shooting = 0;
+                shootTime.reset();
             }
             if(gamepad2.b){
                 robot.transferUp();
@@ -107,19 +105,25 @@ public class BlueTeleop extends LinearOpMode {
                     }
                     break;
                 case CYCLEGREEN:
-                    for (int i = 0; i < 3; i++) {
-                        if(colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN){
-                            robot.setCycle(i);
-                            break;
+                    if(shooting == 0) {
+                        for (int i = 0; i < 3; i++) {
+                            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN) {
+                                robot.setCycle(i);
+                                break;
+                            }
                         }
+                        shooting = 1;
                     }
                     break;
                 case CYCLEPURPLE:
-                    for (int i = 0; i < 3; i++) {
-                        if(colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE){
-                            robot.setCycle(i);
-                            break;
+                    if(shooting == 0) {
+                        for (int i = 0; i < 3; i++) {
+                            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE) {
+                                robot.setCycle(i);
+                                break;
+                            }
                         }
+                        shooting = 1;
                     }
                     break;
             }
