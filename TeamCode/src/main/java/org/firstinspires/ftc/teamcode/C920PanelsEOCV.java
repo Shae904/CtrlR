@@ -162,7 +162,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         // index 0 is null because that slot is triangle-based
         private final Rect[] slotRects = new Rect[] {
                 null,
-                new Rect(420, 400, 220, 80),  // slot 1
+                new Rect(420, 420, 220, 60),  // slot 1
                 new Rect(400, 90, 180, 70)   // slot 2
         };
 
@@ -178,7 +178,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         private final Scalar purpleUpper = new Scalar(160, 255, 255);
 
         // min colored pixels to detect ball. tune this.
-        private final int minPixelsForBall = 300;
+        private final int minPixelsForBall = 400;
 
         @Override
         public Mat processFrame(Mat input) {
@@ -275,12 +275,13 @@ public class C920PanelsEOCV extends LinearOpMode {
                 int purpleCount = Core.countNonZero(maskPurple);
 
                 SlotState state;
-                if (greenCount < minPixelsForBall && purpleCount < minPixelsForBall) {
-                    state = SlotState.EMPTY;
-                } else if (greenCount > purpleCount) {
+                if (greenCount > purpleCount && greenCount > minPixelsForBall) {
                     state = SlotState.GREEN;
-                } else {
+                } else if (purpleCount > greenCount && purpleCount > minPixelsForBall) {
                     state = SlotState.PURPLE;
+                }
+                else{
+                    state = SlotState.EMPTY;
                 }
 
                 slotStates[i] = state;
@@ -339,10 +340,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         public double getLastS() { return lastS; }
         public double getLastV() { return lastV; }
 
-         public SlotState[] getSlotStates() { return slotStates; }
+        public SlotState[] getSlotStates() { return slotStates; }
         public SlotState getSlotState(int index) { return slotStates[index]; }
     }
 }
-
-
-

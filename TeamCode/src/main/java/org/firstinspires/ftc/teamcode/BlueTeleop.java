@@ -108,7 +108,7 @@ public class BlueTeleop extends LinearOpMode {
                     if(shooting == 0) {
                         for (int i = 0; i < 3; i++) {
                             if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN) {
-                                robot.setCycle(i);
+                                robot.setCycle((i+1) % 3);
                                 break;
                             }
                         }
@@ -119,7 +119,7 @@ public class BlueTeleop extends LinearOpMode {
                     if(shooting == 0) {
                         for (int i = 0; i < 3; i++) {
                             if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE) {
-                                robot.setCycle(i);
+                                robot.setCycle((i+1) % 3);
                                 break;
                             }
                         }
