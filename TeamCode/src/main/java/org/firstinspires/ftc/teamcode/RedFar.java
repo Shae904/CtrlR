@@ -30,7 +30,7 @@ public class RedFar extends LinearOpMode {
 
     public static double[][] PoseCoords = {
             {87,9,90}, // Start
-            {90,12,70}, // Shoot
+            {90,14,70}, // Shoot
             {83,84,0}, // Intake PPG Start
             {114,84,0}, // Intake PPG End
             {83,60,0}, // Intake PGP Start
@@ -126,7 +126,7 @@ public class RedFar extends LinearOpMode {
             follower.update();
         }
         robot.intake.setPower(1);
-        follower.followPath(intakePath,0.7,false);
+        follower.followPath(intakePath,0.5,false);
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
         }
@@ -200,8 +200,8 @@ public class RedFar extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
         robot = new Robot(this);
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(START);
         buildPaths();
+        follower.setStartingPose(START);
         pathState = PathState.PRELOAD;
         opModeTimer = new ElapsedTime();
         limelight = robot.getLimelight();

@@ -3,24 +3,19 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
-@TeleOp(name = "Red Teleop")
-public class RedTeleop extends LinearOpMode {
+@TeleOp(name = "Alt Red Teleop")
+public class AltRedTeleop extends LinearOpMode {
     public static Robot robot;
     public enum  RunState{
-        CYCLEGREEN,
-        CYCLEPURPLE,
+        SHOOT0,
+        SHOOT1,
+        SHOOT2,
         INTAKE
     }
     public RunState state;
 
-    public static double cycleTime = Robot.cycleTime;
-    public static double outTime = Robot.outTime;
-    public static double transferTime = Robot.transferTime;
-
-    public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
+    public static double cycleTime = 0.4; // TODO Tune
+    public static double outTime = 0.8; // TODO Tune
 
     private final ElapsedTime shootTime = new ElapsedTime();
     private int shooting = 0;
@@ -68,88 +63,95 @@ public class RedTeleop extends LinearOpMode {
             telemetry.addData("Current velocity",robot.launch.getVelocity());
             telemetry.update();
 
-            // Get colors
-            colors = robot.pipeline.getSlotStates();
-
             if (gamepad2.a) {
                 state = RunState.INTAKE;
                 shooting = 0;
             }
             else if(gamepad2.x){
-                state = RunState.CYCLEGREEN;
+                state = RunState.SHOOT0;
                 if(shooting == 0){
                     shootTime.reset();
                 }
             }
             else if(gamepad2.y){
-                state = RunState.CYCLEPURPLE;
-                if(shooting == 0) {
+                state = RunState.SHOOT1;
+                if(shooting == 0){
                     shootTime.reset();
                 }
             }
-            if(gamepad2.b){
+            else if(gamepad2.b){
+                state = RunState.SHOOT2;
+                if(shooting == 0){
+                    shootTime.reset();
+                }
+            }
+            if(gamepad2.left_bumper){
                 robot.transferUp();
             }
             else{
                 robot.transferDown();
             }
-            if(gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
-                robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
-            }
-            else if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
-                robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
-            }
-            else{
-                robot.intake.setPower(0);
-            }
             switch(state){
                 case INTAKE:
                     robot.setCycle(0);
                     robot.transferDown();
-                    break;
-                case CYCLEGREEN:
-                    if(shooting == 0) {
-                        for (int i = 0; i < 3; i++) {
-                            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN) {
-                                int o = (robot.cpos+i+1) % 3;
-                                robot.setCycle(o);
-                                telemetry.addData("Green Position:", i);
-                                break;
-                            }
-                        }
-                        shooting = 1;
+                    if(gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
+                        robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
                     }
-                    else if(shootTime.seconds() >= cycleTime && shootTime.seconds() < cycleTime + outTime){
-                        robot.transferUp();
+                    else if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
+                        robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
                     }
-                    else if(shootTime.seconds() >= cycleTime + outTime &&  shootTime.seconds() < cycleTime + outTime + transferTime){
-                        robot.transferDown();
-                    }
-                    else if(shootTime.seconds() >= cycleTime + outTime + transferTime){
-                        shooting = 0;
+                    else{
+                        robot.intake.setPower(0);
                     }
                     break;
-                case CYCLEPURPLE:
-                    if(shooting == 0) {
-                        for (int i = 0; i < 3; i++) {
-                            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE) {
-                                int o = (robot.cpos+i+1) % 3;
-                                robot.setCycle(o);
-                                telemetry.addData("Purple Position:", i);
-                                break;
-                            }
-                        }
+                case SHOOT0:
+                    robot.setCycle(1);
+                    /*if(shooting == 0){
                         shooting = 1;
                     }
-                    else if(shootTime.seconds() >= cycleTime && shootTime.seconds() < cycleTime + outTime){
+                    if(shootTime.seconds() < cycleTime){
+                        robot.setCycle(1);
+                    }
+                    else if(shootTime.seconds() < cycleTime + outTime){
                         robot.transferUp();
                     }
-                    else if(shootTime.seconds() >= cycleTime + outTime &&  shootTime.seconds() < cycleTime + outTime + transferTime){
+                    else{
+                      robot.transferDown();
+                      shooting = 0;
+                    }*/
+                    break;
+                case SHOOT1:
+                    robot.setCycle(2);
+                    /*if(shooting == 0){
+                        shooting = 1;
+                    }
+                    if(shootTime.seconds() < cycleTime){
+                        robot.setCycle(2);
+                    }
+                    else if(shootTime.seconds() < cycleTime + outTime){
+                        robot.transferUp();
+                    }
+                    else{
                         robot.transferDown();
-                    }
-                    else if(shootTime.seconds() >= cycleTime + outTime + transferTime){
                         shooting = 0;
+                    }*/
+                    break;
+                case SHOOT2:
+                    robot.setCycle(0);
+                    /*if(shooting == 0){
+                        shooting = 1;
                     }
+                    if(shootTime.seconds() < cycleTime){
+                        robot.setCycle(0);
+                    }
+                    else if(shootTime.seconds() < cycleTime + outTime){
+                        robot.transferUp();
+                    }
+                    else{
+                        robot.transferDown();
+                        shooting = 0;
+                    }*/
                     break;
             }
         }
