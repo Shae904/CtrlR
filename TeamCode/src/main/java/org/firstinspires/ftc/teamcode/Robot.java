@@ -53,9 +53,12 @@ public class Robot {
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
     public static double[] cyclePos = {0.055,0.35,0.63};
-    double x = 0;
+    double x = 128; // Distance to goal, 128 is how far auton start position is to goal
     public int cpos = 0;
     public final Limelight3A limelight;
+    public static double cycleTime = 1.2; // TODO Tune
+    public static double outTime = 0.7; // TODO Tune
+    public static double transferTime = 0.3; // TODO Tune
 
     public OpenCvWebcam webcam;
 

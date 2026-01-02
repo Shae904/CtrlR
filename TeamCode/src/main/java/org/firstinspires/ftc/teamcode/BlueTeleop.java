@@ -16,9 +16,9 @@ public class BlueTeleop extends LinearOpMode {
     }
     public RunState state;
 
-    public static double cycleTime = 1.2; // TODO Tune
-    public static double outTime = 0.7; // TODO Tune
-    public static double transferTime = 0.3; // TODO Tune
+    public static double cycleTime = Robot.cycleTime;
+    public static double outTime = Robot.outTime;
+    public static double transferTime = Robot.transferTime;
 
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
 
