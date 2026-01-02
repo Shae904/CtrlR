@@ -40,11 +40,9 @@ public class RedFar extends LinearOpMode {
             {90,50,62} // PARK
     };
     public static Pose START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END,PARK;
-    public Pose[] Poses = {START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END,PARK};
     public Follower follower;
     public static int pattern = 21;
     public Limelight3A limelight;
-    public final Telemetry telemetry;
     private int shooting;
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
 
@@ -52,14 +50,12 @@ public class RedFar extends LinearOpMode {
 
     private PathState pathState = PathState.PRELOAD;
 
-    public RedFar(Telemetry telemetry) {
-        this.telemetry = telemetry;
-    }
-
     public void initializePoses(){
-        for(int i = 0; i < Poses.length; i++) {
-           Poses[i] = new Pose(PoseCoords[i][0],PoseCoords[i][1],Math.toRadians(PoseCoords[i][2]));
-        }
+        START = new Pose(PoseCoords[0][0],PoseCoords[0][1],Math.toRadians(PoseCoords[0][2]));
+        SHOOT = new Pose(PoseCoords[1][0],PoseCoords[1][1],Math.toRadians(PoseCoords[1][2]));
+        INTAKE_GPP_START = new Pose(PoseCoords[6][0],PoseCoords[6][1],Math.toRadians(PoseCoords[6][2]));
+        INTAKE_GPP_END = new Pose(PoseCoords[7][0],PoseCoords[7][1],Math.toRadians(PoseCoords[7][2]));
+        PARK = new Pose(PoseCoords[8][0],PoseCoords[8][1],Math.toRadians(PoseCoords[8][2]));
     }
 
     public PathChain shootPreload,preIntakePPG,intakePPG,launchPPG,preIntakePGP,intakePGP,launchPGP,preIntakeGPP,intakeGPP,shootGPP,park;
@@ -200,21 +196,19 @@ public class RedFar extends LinearOpMode {
                 break;
         }
     }
+    @Override
     public void runOpMode() throws InterruptedException {
-
+        robot = new Robot(this);
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(START);
+        buildPaths();
+        pathState = PathState.PRELOAD;
+        opModeTimer = new ElapsedTime();
+        limelight = robot.getLimelight();
+        limelight.start();
         while(this.opModeInInit()) {
-            robot = new Robot(this);
-            follower = Constants.createFollower(hardwareMap);
-            follower.setStartingPose(START);
-            waitForStart();
-            pathState = PathState.PRELOAD;
-            opModeTimer = new ElapsedTime();
             opModeTimer.reset();
-            buildPaths();
-
             // Limelight setup
-            limelight = robot.getLimelight();
-            limelight.start();
             pattern = 21;
             LLResult result = limelight.getLatestResult();
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
@@ -224,9 +218,8 @@ public class RedFar extends LinearOpMode {
                     pattern = id;
                 }
             }
-
-
         }
+        waitForStart();
         while(this.opModeIsActive()){
             colors = robot.pipeline.getSlotStates();
             follower.update();

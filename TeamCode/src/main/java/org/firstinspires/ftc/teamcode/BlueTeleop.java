@@ -93,19 +93,19 @@ public class BlueTeleop extends LinearOpMode {
             else{
                 robot.transferDown();
             }
+            if(gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
+                robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
+            }
+            else if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
+                robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
+            }
+            else{
+                robot.intake.setPower(0);
+            }
             switch(state){
                 case INTAKE:
                     robot.setCycle(0);
                     robot.transferDown();
-                    if(gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
-                        robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
-                    }
-                    else if(gamepad2.right_trigger > 0.05 || gamepad2.left_trigger > 0.05) {
-                        robot.intake.setPower(gamepad2.left_trigger - gamepad2.right_trigger);
-                    }
-                    else{
-                        robot.intake.setPower(0);
-                    }
                     break;
                 case CYCLEGREEN:
                     if(shooting == 0) {
