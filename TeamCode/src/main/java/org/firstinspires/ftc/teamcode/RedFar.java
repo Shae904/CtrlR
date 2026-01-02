@@ -22,7 +22,7 @@ import java.util.List;
 @Autonomous(name = "Red Far")
 public class RedFar extends LinearOpMode {
     public static Robot robot;
-    public static ElapsedTime pathTimer, opModeTimer;
+    public static ElapsedTime opModeTimer;
 
     public static double cycleTime = Robot.cycleTime;
     public static double outTime = Robot.outTime;
@@ -200,21 +200,20 @@ public class RedFar extends LinearOpMode {
                 break;
         }
     }
+    @Override
     public void runOpMode() throws InterruptedException {
-
+        robot = new Robot(this);
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(START);
+        pathState = PathState.PRELOAD;
+        opModeTimer = new ElapsedTime();
+        limelight = robot.getLimelight();
+        limelight.start();
+        buildPaths();
         while(this.opModeInInit()) {
-            robot = new Robot(this);
-            follower = Constants.createFollower(hardwareMap);
-            follower.setStartingPose(START);
-            waitForStart();
-            pathState = PathState.PRELOAD;
-            opModeTimer = new ElapsedTime();
             opModeTimer.reset();
-            buildPaths();
-
             // Limelight setup
-            limelight = robot.getLimelight();
-            limelight.start();
+
             pattern = 21;
             LLResult result = limelight.getLatestResult();
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
@@ -224,9 +223,8 @@ public class RedFar extends LinearOpMode {
                     pattern = id;
                 }
             }
-
-
         }
+        waitForStart();
         while(this.opModeIsActive()){
             colors = robot.pipeline.getSlotStates();
             follower.update();
