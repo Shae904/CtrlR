@@ -16,8 +16,9 @@ public class BlueTeleop extends LinearOpMode {
     }
     public RunState state;
 
-    public static double cycleTime = 0.5; // TODO Tune
-    public static double outTime = 0.8; // TODO Tune
+    public static double cycleTime = 1.2; // TODO Tune
+    public static double outTime = 0.7; // TODO Tune
+    public static double transferTime = 0.3; // TODO Tune
 
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
 
@@ -76,13 +77,15 @@ public class BlueTeleop extends LinearOpMode {
             }
             else if(gamepad2.x){
                 state = RunState.CYCLEGREEN;
-                shooting = 0;
-                shootTime.reset();
+                if(shooting == 0){
+                    shootTime.reset();
+                }
             }
             else if(gamepad2.y){
                 state = RunState.CYCLEPURPLE;
-                shooting = 0;
-                shootTime.reset();
+                if(shooting == 0) {
+                    shootTime.reset();
+                }
             }
             if(gamepad2.b){
                 robot.transferUp();
@@ -108,22 +111,44 @@ public class BlueTeleop extends LinearOpMode {
                     if(shooting == 0) {
                         for (int i = 0; i < 3; i++) {
                             if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN) {
-                                robot.setCycle((i+1) % 3);
+                                int o = (robot.cpos+i+1) % 3;
+                                robot.setCycle(o);
+                                telemetry.addData("Green Position:", i);
                                 break;
                             }
                         }
                         shooting = 1;
+                    }
+                    else if(shootTime.seconds() >= cycleTime && shootTime.seconds() < cycleTime + outTime){
+                        robot.transferUp();
+                    }
+                    else if(shootTime.seconds() >= cycleTime + outTime &&  shootTime.seconds() < cycleTime + outTime + transferTime){
+                        robot.transferDown();
+                    }
+                    else if(shootTime.seconds() >= cycleTime + outTime + transferTime){
+                        shooting = 0;
                     }
                     break;
                 case CYCLEPURPLE:
                     if(shooting == 0) {
                         for (int i = 0; i < 3; i++) {
                             if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE) {
-                                robot.setCycle((i+1) % 3);
+                                int o = (robot.cpos+i+1) % 3;
+                                robot.setCycle(o);
+                                telemetry.addData("Purple Position:", i);
                                 break;
                             }
                         }
                         shooting = 1;
+                    }
+                    else if(shootTime.seconds() >= cycleTime && shootTime.seconds() < cycleTime + outTime){
+                        robot.transferUp();
+                    }
+                    else if(shootTime.seconds() >= cycleTime + outTime &&  shootTime.seconds() < cycleTime + outTime + transferTime){
+                        robot.transferDown();
+                    }
+                    else if(shootTime.seconds() >= cycleTime + outTime + transferTime){
+                        shooting = 0;
                     }
                     break;
             }

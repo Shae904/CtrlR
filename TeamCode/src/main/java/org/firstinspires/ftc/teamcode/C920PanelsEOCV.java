@@ -152,8 +152,8 @@ public class C920PanelsEOCV extends LinearOpMode {
         // slot 0 = triangle (335, 400), (570, 480), (335, 480)
         private final Point[] tri0Points = new Point[] {
                 new Point(0, 120),
-                new Point(0, 400),
-                new Point(120, 400),
+                new Point(0, 340),
+                new Point(120, 340),
                 new Point(120, 120)
         };
         private final MatOfPoint tri0Mat = new MatOfPoint(tri0Points);
@@ -163,7 +163,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         private final Rect[] slotRects = new Rect[] {
                 null,
                 new Rect(420, 420, 220, 60),  // slot 1
-                new Rect(400, 90, 180, 70)   // slot 2
+                new Rect(330, 70, 230, 70)   // slot 2
         };
 
         private final SlotState[] slotStates = new SlotState[] {
@@ -178,7 +178,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         private final Scalar purpleUpper = new Scalar(160, 255, 255);
 
         // min colored pixels to detect ball. tune this.
-        private final int minPixelsForBall = 400;
+        private final int minPixelsForBall = 1350;
 
         @Override
         public Mat processFrame(Mat input) {
@@ -213,12 +213,10 @@ public class C920PanelsEOCV extends LinearOpMode {
             int greenCount0 = Core.countNonZero(slotGreen);
             int purpleCount0 = Core.countNonZero(slotPurple);
 
-            SlotState state0;
-            if (greenCount0 < minPixelsForBall && purpleCount0 < minPixelsForBall) {
-                state0 = SlotState.EMPTY;
-            } else if (greenCount0 > purpleCount0) {
+            SlotState state0 = SlotState.EMPTY;
+            if (greenCount0 > purpleCount0 && greenCount0 > minPixelsForBall) {
                 state0 = SlotState.GREEN;
-            } else {
+            } else if(purpleCount0 > greenCount0 && purpleCount0 > minPixelsForBall) {
                 state0 = SlotState.PURPLE;
             }
             slotStates[0] = state0;
@@ -274,14 +272,11 @@ public class C920PanelsEOCV extends LinearOpMode {
                 Core.inRange(slotHSV, purpleLower, purpleUpper, maskPurple);
                 int purpleCount = Core.countNonZero(maskPurple);
 
-                SlotState state;
+                SlotState state = SlotState.EMPTY;
                 if (greenCount > purpleCount && greenCount > minPixelsForBall) {
                     state = SlotState.GREEN;
                 } else if (purpleCount > greenCount && purpleCount > minPixelsForBall) {
                     state = SlotState.PURPLE;
-                }
-                else{
-                    state = SlotState.EMPTY;
                 }
 
                 slotStates[i] = state;
