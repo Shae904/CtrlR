@@ -26,7 +26,7 @@ public class RedFarSix extends LinearOpMode {
 
     public static double[][] PoseCoords = {
             {87,9,90}, // Start
-            {90,14,71.5}, // Shoot
+            {90,14,72.5}, // Shoot
             {83,84,0}, // Intake PPG Start
             {114,84,0}, // Intake PPG End
             {83,60,0}, // Intake PGP Start

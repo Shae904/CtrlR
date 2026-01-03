@@ -33,6 +33,10 @@ public class RedTeleop extends LinearOpMode {
         shootTime.reset();
         telemetry.setMsTransmissionInterval(50);
 
+        while(opModeInInit()){
+            robot.setCycle(0);
+        }
+
         waitForStart();
 
         while (opModeIsActive()) {

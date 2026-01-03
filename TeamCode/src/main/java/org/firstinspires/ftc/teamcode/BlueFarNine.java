@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.List;
 
-@Autonomous(name = "Red Far 6")
+@Autonomous(name = "Blue Far 9")
 public class BlueFarNine extends LinearOpMode {
     public static Robot robot;
     public static ElapsedTime opModeTimer;

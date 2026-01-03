@@ -56,9 +56,9 @@ public class Robot {
     double x = 128; // Distance to goal, 128 is how far auton start position is to goal
     public int cpos = 0;
     public final Limelight3A limelight;
-    public static double cycleTime = 1.4; // TODO Tune
-    public static double outTime = 0.7; // TODO Tune
-    public static double transferTime = 0.3; // TODO Tune
+    public static double cycleTime = 0.9; // TODO Tune
+    public static double outTime = 0.5; // TODO Tune
+    public static double transferTime = 0.2; // TODO Tune
 
     public OpenCvWebcam webcam;
 
@@ -156,10 +156,10 @@ public class Robot {
         intake.setPower(intakePower);
     }
     public double outtake(char color){
-        double Kv = 0.00036;
+        double Kv = 0.000379;
         double Kp = 0.001;
-        double goalHeight = 29.5;
-        double limelightHeight = 10.5;
+        double goalHeight = 30;
+        double limelightHeight = 10;
         double angle = -1;
         int targetId;
         if(color == 'r'){
@@ -183,22 +183,13 @@ public class Robot {
             x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
         }
         // 6 added to account for distance between limelight and shooter
-        double targetVelo = 118* x * Math.pow(0.9035693 * x - 29,-0.5);
+        double targetVelo = 112.57 * x * Math.pow(0.9035693 * x - 29,-0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
         double power = Range.clip(ff + p, -0.2, 1.0);
         launch.setPower(power);
         return targetVelo;
-    }
-
-    public void stopOuttake(int reset){
-        if(reset == 1){
-            cpos += 1;
-            setCycle(cpos);
-        }
-        transferDown();
-        launch.setPower(0);
     }
     public void setCycle(int pos){
         cpos = pos;

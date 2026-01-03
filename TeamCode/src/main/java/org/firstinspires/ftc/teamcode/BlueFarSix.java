@@ -17,7 +17,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.List;
 
 @Autonomous(name = "Blue Far 6")
-public class BlueFarSix extends LinearOpMode {
+public class  BlueFarSix extends LinearOpMode {
     public static Robot robot;
     public static ElapsedTime opModeTimer;
 
@@ -26,13 +26,14 @@ public class BlueFarSix extends LinearOpMode {
     public static double transferTime = Robot.transferTime;
     public static double[][] PoseCoords = {
             {57,9,90}, // Start
-            {54,10,125}, // Shoot
-            {61,84,180}, // Intake PPG Start
-            {30,84,180}, // Intake PPG End
-            {61,60,180}, // Intake PGP Start
-            {30,60,180}, // Intake PGP End
-            {61,36,180}, // Intake GPP Start
-            {30,36,180} // Intake GPP End
+            {54,14,113.7}, // Shoot
+            {48,84,180}, // Intake PPG Start
+            {11,84,180}, // Intake PPG End
+            {48,60,180}, // Intake PGP Start
+            {11,60,180}, // Intake PGP End
+            {48,33,180}, // Intake GPP Start
+            {5,33,180}, // Intake GPP End
+            {50,50,128} // Park
     };
     public static Pose START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END,PARK;
     public Follower follower;
@@ -106,7 +107,7 @@ public class BlueFarSix extends LinearOpMode {
                 .build();
         shootGPP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_GPP_END,SHOOT))
-                .setLinearHeadingInterpolation(INTAKE_GPP_START.getHeading(),SHOOT.getHeading())
+                .setLinearHeadingInterpolation(INTAKE_GPP_END.getHeading(),SHOOT.getHeading())
                 .setTimeoutConstraint(500)
                 .build();
         park = follower.pathBuilder()
