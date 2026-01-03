@@ -30,13 +30,13 @@ public class RedFar extends LinearOpMode {
 
     public static double[][] PoseCoords = {
             {87,9,90}, // Start
-            {90,14,70}, // Shoot
+            {90,14,71.5}, // Shoot
             {83,84,0}, // Intake PPG Start
             {114,84,0}, // Intake PPG End
             {83,60,0}, // Intake PGP Start
             {114,60,0}, // Intake PGP End
-            {96,35,0}, // Intake GPP Start
-            {136,35,0}, // Intake GPP End
+            {96,33,0}, // Intake GPP Start
+            {133,33,0}, // Intake GPP End
             {90,50,62} // PARK
     };
     public static Pose START,SHOOT,INTAKE_PPG_START,INTAKE_PPG_END,INTAKE_PGP_START,INTAKE_PGP_END,INTAKE_GPP_START,INTAKE_GPP_END,PARK;
@@ -123,78 +123,95 @@ public class RedFar extends LinearOpMode {
     public void intakeThree(PathChain prePath, PathChain intakePath){
         follower.followPath(prePath);
         while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+            update();
         }
         robot.intake.setPower(1);
         follower.followPath(intakePath,0.5,false);
         while (opModeIsActive() && follower.isBusy()) {
-            follower.update();
+            update();
         }
     }
-    public void shoot(ElapsedTime timer, int count){
+    public void shoot(int count){
         C920PanelsEOCV.C920Pipeline.SlotState color = C920PanelsEOCV.C920Pipeline.SlotState.PURPLE;
         if(count == pattern - 21){
             color = C920PanelsEOCV.C920Pipeline.SlotState.GREEN;
         }
-        if(shooting == 0) {
-            for (int i = 0; i < 3; i++) {
-                if (colors[i] == color) {
-                    int o = (robot.cpos+i+1) % 3;
-                    robot.setCycle(o);
-                    break;
-                }
+        for (int i = 2; i > -1; i--) {
+            if (colors[i] == color) {
+                int o = (robot.cpos+i+1) % 3;
+                robot.setCycle(o);
+                break;
             }
-            shooting = 1;
         }
-        else if(timer.seconds() >= cycleTime && timer.seconds() < cycleTime + outTime){
-            robot.transferUp();
-        }
-        else if(timer.seconds() >= cycleTime + outTime &&  timer.seconds() < cycleTime + outTime + transferTime){
-            robot.transferDown();
-        }
-        while(timer.seconds() < cycleTime + outTime + transferTime){
-            follower.update(); // delay
+        ElapsedTime timer = new ElapsedTime();
+        boolean up = false;
+        boolean down = false;
+        while(opModeIsActive() && timer.seconds() < cycleTime + outTime + transferTime) {
+            robot.outtake('r');
+            if (!up && timer.seconds() >= cycleTime) {
+                robot.transferUp();
+                up = true;
+            }
+            if(!down && timer.seconds() >= cycleTime + outTime){
+                robot.transferDown();
+                down = true;
+            }
+            update();
         }
     }
     public void shootThree(){
-        ElapsedTime shootTimer = new ElapsedTime();
-        follower.followPath(shootGPP);
         while(opModeIsActive() && follower.isBusy()){
-            follower.update();
+            update();
         }
-        shoot(shootTimer,0);
-        shoot(shootTimer,1);
-        shoot(shootTimer,2);
+        shoot(0);
+        shoot(1);
+        shoot(2);
     }
     public void autonomousPathUpdate(){
         if(opModeTimer.seconds() > 29.5){
             pathState = PathState.STOP;
         }
-        else{
-            robot.outtake('r');
-        }
         switch (pathState){
             case PRELOAD:
                 follower.followPath(shootPreload, true);
+                while(opModeIsActive() && follower.isBusy()){update();}
                 shootThree();
                 pathState = PathState.GPP;
                 break;
             case GPP:
                 intakeThree(preIntakeGPP,intakeGPP);
+                follower.followPath(shootGPP);
+                while(opModeIsActive() && follower.isBusy()){update();}
                 shootThree();
                 pathState = PathState.PARK;
                 break;
             case PARK:
                 follower.followPath(park);
-                if(!follower.isBusy()){
-                    pathState = PathState.STOP;
-                }
+                while(opModeIsActive() && follower.isBusy()){update();}
+                pathState = PathState.STOP;
+                break;
             case STOP:
                 robot.launch.setPower(0);
                 robot.setCycle(0);
                 robot.setIntakePower(0);
                 break;
         }
+    }
+    public void update(){
+        follower.update();
+        robot.outtake('r');
+        robot.intake.setPower(-0.9);
+        LLResult result = limelight.getLatestResult();
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+        for (LLResultTypes.FiducialResult fiducial : fiducials) {
+            int id = fiducial.getFiducialId(); // The ID number of the fiducial
+            if (id >= 21 && id <= 23) {
+                pattern = id;
+            }
+        }
+        telemetry.addData("Path State", pathState);
+        telemetry.addData("Pattern", pattern);
+        telemetry.update();
     }
     @Override
     public void runOpMode() throws InterruptedException {
@@ -206,10 +223,11 @@ public class RedFar extends LinearOpMode {
         opModeTimer = new ElapsedTime();
         limelight = robot.getLimelight();
         limelight.start();
+        pattern = 21;
         while(this.opModeInInit()) {
+            robot.setCycle(0);
             opModeTimer.reset();
             // Limelight setup
-            pattern = 21;
             LLResult result = limelight.getLatestResult();
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
             for (LLResultTypes.FiducialResult fiducial : fiducials) {
@@ -222,12 +240,7 @@ public class RedFar extends LinearOpMode {
         waitForStart();
         while(this.opModeIsActive()){
             colors = robot.pipeline.getSlotStates();
-            follower.update();
             autonomousPathUpdate();
-
-            telemetry.addData("Path State", pathState);
-            telemetry.addData("Pattern", pattern);
-            telemetry.update();
         }
     }
 }

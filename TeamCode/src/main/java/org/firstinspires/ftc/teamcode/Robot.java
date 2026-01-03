@@ -52,11 +52,11 @@ public class Robot {
     public static double transferTwo = 0.38;
     public final ServoImplEx transfer,cycle;
     public static LinearOpMode opMode;
-    public static double[] cyclePos = {0.055,0.35,0.63};
+    public static double[] cyclePos = {0.055,0.343,0.615};
     double x = 128; // Distance to goal, 128 is how far auton start position is to goal
     public int cpos = 0;
     public final Limelight3A limelight;
-    public static double cycleTime = 1.2; // TODO Tune
+    public static double cycleTime = 1.4; // TODO Tune
     public static double outTime = 0.7; // TODO Tune
     public static double transferTime = 0.3; // TODO Tune
 
@@ -174,8 +174,8 @@ public class Robot {
             int id = fiducial.getFiducialId(); // The ID number of the fiducial
             double y = fiducial.getTargetYDegrees(); // Where it is (up-down)
             if (id == targetId) {
-                angle = Math.toRadians(y + 28);
-                // 28 is limelight facing angle
+                angle = Math.toRadians(y + 21);
+                // 21 is limelight facing angle
                 break;
             }
         }
@@ -183,7 +183,7 @@ public class Robot {
             x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
         }
         // 6 added to account for distance between limelight and shooter
-        double targetVelo = 127 * x * Math.pow(0.9035693 * x - 29,-0.5);
+        double targetVelo = 118* x * Math.pow(0.9035693 * x - 29,-0.5);
         double ff = Kv * targetVelo;
         double currentVelo = launch.getVelocity();
         double p = Kp * (targetVelo - currentVelo);
