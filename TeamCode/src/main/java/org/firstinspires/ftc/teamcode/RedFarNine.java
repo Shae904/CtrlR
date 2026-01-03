@@ -3,9 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
-import com.pedropathing.util.Timer;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -13,16 +11,14 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
-@Autonomous(name = "Red Far")
-public class RedFar extends LinearOpMode {
+@Autonomous(name = "Red Far 6")
+public class RedFarNine extends LinearOpMode {
     public static Robot robot;
-    public static ElapsedTime pathTimer, opModeTimer;
+    public static ElapsedTime opModeTimer;
 
     public static double cycleTime = Robot.cycleTime;
     public static double outTime = Robot.outTime;
@@ -46,19 +42,21 @@ public class RedFar extends LinearOpMode {
     private int shooting;
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
 
-    public enum PathState{PRELOAD,GPP,PARK,STOP}
+    public enum PathState{PRELOAD,PGP,GPP,PARK,STOP}
 
     private PathState pathState = PathState.PRELOAD;
 
     public void initializePoses(){
         START = new Pose(PoseCoords[0][0],PoseCoords[0][1],Math.toRadians(PoseCoords[0][2]));
         SHOOT = new Pose(PoseCoords[1][0],PoseCoords[1][1],Math.toRadians(PoseCoords[1][2]));
+        INTAKE_PGP_START = new Pose(PoseCoords[4][0],PoseCoords[4][1],Math.toRadians(PoseCoords[4][2]));
+        INTAKE_PGP_END = new Pose(PoseCoords[5][0],PoseCoords[5][1],Math.toRadians(PoseCoords[5][2]));
         INTAKE_GPP_START = new Pose(PoseCoords[6][0],PoseCoords[6][1],Math.toRadians(PoseCoords[6][2]));
         INTAKE_GPP_END = new Pose(PoseCoords[7][0],PoseCoords[7][1],Math.toRadians(PoseCoords[7][2]));
         PARK = new Pose(PoseCoords[8][0],PoseCoords[8][1],Math.toRadians(PoseCoords[8][2]));
     }
 
-    public PathChain shootPreload,preIntakePPG,intakePPG,launchPPG,preIntakePGP,intakePGP,launchPGP,preIntakeGPP,intakeGPP,shootGPP,park;
+    public PathChain shootPreload,preIntakePPG,intakePPG,launchPPG,preIntakePGP,intakePGP,shootPGP,preIntakeGPP,intakeGPP,shootGPP,park;
     public void buildPaths(){
         initializePoses();
         shootPreload = follower.pathBuilder()
@@ -81,8 +79,7 @@ public class RedFar extends LinearOpMode {
                 .addPath(new BezierLine(INTAKE_PPG_END,SHOOT))
                 .setLinearHeadingInterpolation(INTAKE_PPG_START.getHeading(),SHOOT.getHeading())
                 .setTimeoutConstraint(500)
-                .build();
-
+                .build();*/
         preIntakePGP = follower.pathBuilder()
                 .addPath(new BezierLine(SHOOT,INTAKE_PGP_START))
                 .setLinearHeadingInterpolation(SHOOT.getHeading(), INTAKE_PGP_START.getHeading())
@@ -93,11 +90,11 @@ public class RedFar extends LinearOpMode {
                 .setConstantHeadingInterpolation(INTAKE_PGP_START.getHeading())
                 .setTimeoutConstraint(500)
                 .build();
-        launchPGP = follower.pathBuilder()
+        shootPGP = follower.pathBuilder()
                 .addPath(new BezierLine(INTAKE_PGP_END,SHOOT))
                 .setLinearHeadingInterpolation(INTAKE_PGP_START.getHeading(),SHOOT.getHeading())
                 .setTimeoutConstraint(500)
-                .build();*/
+                .build();
 
         preIntakeGPP = follower.pathBuilder()
                 .addPath(new BezierLine(SHOOT,INTAKE_GPP_START))
@@ -183,7 +180,14 @@ public class RedFar extends LinearOpMode {
                 follower.followPath(shootGPP);
                 while(opModeIsActive() && follower.isBusy()){update();}
                 shootThree();
-                pathState = PathState.PARK;
+                pathState = PathState.PGP;
+                break;
+            case PGP:
+                intakeThree(preIntakePGP,intakePGP);
+                follower.followPath(shootPGP);
+                while(opModeIsActive() && follower.isBusy()){update();}
+                shootThree();
+                pathState = PathState.PGP;
                 break;
             case PARK:
                 follower.followPath(park);
