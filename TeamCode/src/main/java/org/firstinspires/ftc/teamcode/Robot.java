@@ -7,6 +7,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -41,6 +42,8 @@ motors
 servos
 1 - transfer
 4 - cycle
+
+axon max analog feedback wire -> analog input named "cycleAnalog"
 */
 @Configurable
 public class Robot {
@@ -49,23 +52,24 @@ public class Robot {
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake, launch;
 
-    public static double transferOne = 0;
-    public static double transferTwo = 0.38;
-
     public final ServoImplEx transfer, cycle;
 
     public static LinearOpMode opMode;
 
+    public static double transferOne = 0;
+    public static double transferTwo = 0.38;
+
+    // 0..2 cycle indices
     public static double[] cyclePos = {0.055, 0.343, 0.615};
     public int cpos = 0;
 
     public final Limelight3A limelight;
 
-    public static double cycleTime = 0.9;     // todo tune
-    public static double outTime = 0.5;       // todo tune
-    public static double transferTime = 0.2;  // todo tune
+    public static double cycleTime = 0.9;     // fallback if you ever need it
+    public static double outTime = 0.5;
+    public static double transferTime = 0.2;
 
-    // distance to goal (inches-ish), updated by limelight y angle when tag is seen
+    // distance to goal (updated when tag is seen)
     private double x = 128;
 
     // ===== aim pid (tx -> rx) tunables =====
@@ -77,6 +81,17 @@ public class Robot {
 
     public static double AIM_OFFSET_RED = 0.0;
     public static double AIM_OFFSET_BLUE = 0.0;
+
+    // ===== cycle analog feedback (axon max) =====
+    public AnalogInput cycleAnalog;
+
+    // tune these by printing voltage at setCycle(0) and setCycle(2)
+    public static double CYCLE_V_MIN = 0.30; // volts at servoPos ~0.0
+    public static double CYCLE_V_MAX = 2.90; // volts at servoPos ~1.0
+    public static double CYCLE_V_TOL = 0.05; // volts tolerance = "close enough"
+
+    // how many consecutive reads must be in-tolerance to count as aligned
+    public static int CYCLE_STABLE_COUNT = 3;
 
     // set false in an opmode before new Robot(this) if you don't want camera init
     public static boolean INIT_VISION = true;
@@ -139,6 +154,13 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
+        // cycle analog (optional but recommended)
+        try {
+            cycleAnalog = hardwareMap.get(AnalogInput.class, "cycleAnalog");
+        } catch (Exception ignored) {
+            cycleAnalog = null;
+        }
+
         // vision (optional)
         if (INIT_VISION) {
             startVision();
@@ -146,7 +168,7 @@ public class Robot {
     }
 
     public void startVision() {
-        if (webcam != null) return; // already started
+        if (webcam != null) return;
 
         HardwareMap hardwareMap = opMode.hardwareMap;
 
@@ -160,7 +182,6 @@ public class Robot {
         pipeline = new C920PanelsEOCV.C920Pipeline();
         webcam.setPipeline(pipeline);
 
-        // gpu view is optional
         webcam.setViewportRenderer(OpenCvWebcam.ViewportRenderer.GPU_ACCELERATED);
         webcam.setViewportRenderingPolicy(OpenCvWebcam.ViewportRenderingPolicy.OPTIMIZE_VIEW);
 
@@ -195,31 +216,53 @@ public class Robot {
         return limelight;
     }
 
-    public void setIntakePower(double intakePower) {
-        intake.setPower(intakePower);
+    // ===== cycle analog helpers =====
+
+    public boolean hasCycleAnalog() {
+        return cycleAnalog != null;
     }
 
-    // placeholder so aimpidtunerteleop can compile
-    public void resetAim() {
-        // if you move pid state into robot later, clear it here
+    public double getCycleVoltage() {
+        if (cycleAnalog == null) return -1.0;
+        return cycleAnalog.getVoltage();
+    }
+
+    private double expectedCycleVoltage(double servoPos) {
+        // assumes roughly linear mapping (good enough for gating)
+        return CYCLE_V_MIN + servoPos * (CYCLE_V_MAX - CYCLE_V_MIN);
+    }
+
+    public boolean cycleAtServoPos(double servoPos) {
+        if (cycleAnalog == null) return false;
+        double v = getCycleVoltage();
+        double vt = expectedCycleVoltage(servoPos);
+        return Math.abs(v - vt) <= CYCLE_V_TOL;
+    }
+
+    public boolean cycleAtIndex(int cycleIndex) {
+        if (cycleIndex < 0 || cycleIndex > 2) return false;
+        return cycleAtServoPos(cyclePos[cycleIndex]);
+    }
+
+    // chamber that fires if you do nothing
+    public int getFireSlot() {
+        return (cpos + 1) % 3;
+    }
+
+    // IMPORTANT: +1 because “next chamber” is the one that fires
+    public int cycleIndexForSlotIndex(int slotIndex) {
+        return (cpos + slotIndex + 1) % 3;
+    }
+
+    // ===== mechanisms =====
+
+    public void setIntakePower(double intakePower) {
+        intake.setPower(intakePower);
     }
 
     public void setCycle(int pos) {
         cpos = pos;
         cycle.setPosition(cyclePos[pos]);
-    }
-
-    // this is for motor test
-    public void setMotor(int motor, double power) {
-        if (motor == 0) {
-            fl.setPower(power);
-        } else if (motor == 1) {
-            fr.setPower(power);
-        } else if (motor == 2) {
-            bl.setPower(power);
-        } else if (motor == 3) {
-            br.setPower(power);
-        }
     }
 
     public void setLaunch(double power) {
@@ -234,6 +277,7 @@ public class Robot {
         transfer.setPosition(transferTwo);
     }
 
+    // flywheel velocity control
     public double outtake(char color) {
         double Kv = 0.000379;
         double Kp = 0.001;
@@ -242,20 +286,16 @@ public class Robot {
         double limelightHeight = 10;
 
         double angle = -1;
-
         int targetId = (color == 'r') ? 24 : 20;
 
-        // limelight can return null / invalid sometimes. don't crash.
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
             if (fiducials != null) {
                 for (LLResultTypes.FiducialResult fiducial : fiducials) {
-                    int id = fiducial.getFiducialId();
-                    double y = fiducial.getTargetYDegrees();
-                    if (id == targetId) {
+                    if (fiducial.getFiducialId() == targetId) {
+                        double y = fiducial.getTargetYDegrees();
                         angle = Math.toRadians(y + 21);
-                        // 21 is limelight facing angle
                         break;
                     }
                 }
@@ -264,9 +304,7 @@ public class Robot {
 
         if (angle != -1) {
             x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
-            // 6 added to account for distance between limelight and shooter
         }
-        // if no tag, keep last x (don't jump)
 
         double targetVelo = 112.57 * x * Math.pow(0.9035693 * x - 29, -0.5);
         double ff = Kv * targetVelo;

@@ -30,12 +30,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
     public RunState state;
 
-    public static double cycleTime = 0.4; // todo tune
-    public static double outTime = 0.8;   // todo tune
-
-    private final ElapsedTime shootTime = new ElapsedTime();
-    private int shooting = 0;
-
     // ===== aim pid (panels) =====
     public static double kp = 0.016;
     public static double ki = 0.0;
@@ -63,37 +57,51 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         lastNanos = 0L;
     }
 
-    // ===== fire test macro (dpad left) =====
-    // generous timings so it doesn't jam
-    public static double ft_cycle_settle = 0.4;   // wait after indexer move
-    public static double ft_feed_delay   = 0.25;   // wait BEFORE opening transfer (your request)
-    public static double ft_feed_time    = 0.15;   // how long transfer stays up
-    public static double ft_down_time    = 0.45;   // time between shots w transfer down
+    // ===== MACRO TIMING (panels tunable) =====
+    // extra wait before opening transfer (your request)
+    public static double feedDelayAfterAligned = 0.20;
 
+    // how long transfer stays up for one shot
+    public static double feedUpTime = 0.16;
+
+    // time after shot w transfer down before next shot
+    public static double betweenShotsDown = 0.35;
+
+    // safety: if analog never agrees, don't softlock forever
+    public static double alignTimeout = 0.80;
+
+    // ===== DPAD LEFT: fixed fire test order 2 -> 0 -> 1 =====
     private enum FireTestState {
         IDLE,
-        TO_2, WAIT_2, FEED_2, DOWN_2,
-        TO_0, WAIT_0, FEED_0, DOWN_0,
-        TO_1, WAIT_1, FEED_1, DOWN_1,
+        MOVE_2, WAIT_2, FEED_2, DOWN_2,
+        MOVE_0, WAIT_0, FEED_0, DOWN_0,
+        MOVE_1, WAIT_1, FEED_1, DOWN_1,
         DONE
     }
 
     private FireTestState ftState = FireTestState.IDLE;
     private final ElapsedTime ftTimer = new ElapsedTime();
     private boolean ftActive = false;
+
+    // analog “stable reads” counter
+    private int stableReads = 0;
+
+    // ===== DPAD DOWN: shoot 3 using sorting logic =====
+    private enum Sort3State {
+        IDLE,
+        PICK_SHOT, MOVE, WAIT_ALIGN, FEED, DOWN,
+        DONE
+    }
+
+    private Sort3State s3State = Sort3State.IDLE;
+    private final ElapsedTime s3Timer = new ElapsedTime();
+    private boolean s3Active = false;
+    private int s3ShotsDone = 0;
+    private int s3TargetCycle = -1;
+
+    // edge detect dpads
     private boolean lastDpadLeft = false;
-
-    private void startFireTest() {
-        ftActive = true;
-        ftState = FireTestState.TO_2;
-        ftTimer.reset();
-    }
-
-    private void stopFireTest() {
-        ftActive = false;
-        ftState = FireTestState.IDLE;
-        robot.transferDown();
-    }
+    private boolean lastDpadDown = false;
 
     @Override
     public void runOpMode() {
@@ -104,21 +112,16 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         robot.limelight.pipelineSwitch(apriltagPipeline);
 
         state = RunState.INTAKE;
-        shootTime.reset();
         telemetry.setMsTransmissionInterval(50);
 
-        /*
-          controls (gamepad1 only):
-          - move: left stick
-          - rotate: right stick x
-          - aim assist: hold right bumper
-          - intake: rt = in, lt = out
-          - transfer: left bumper = up, else down (unless fire test is running)
-          - cycle/select shot: x/y/b = shoot0/1/2, a = back to intake
-          - imu reset: dpad right (i moved reset off dpad left since it's fire test now)
-          - fire test: dpad left = shoots 2 -> 1 -> 0
-        */
-        telemetry.addLine("1p teleop: rb aim, rt/lt intake, x/y/b cycle, lb transfer, dpad left fire test");
+        telemetry.addLine("1p alt red:");
+        telemetry.addLine("rb = aim assist");
+        telemetry.addLine("lb = transfer (manual) unless macro running");
+        telemetry.addLine("rt/lt = intake in/out");
+        telemetry.addLine("x/y/b = set cycle 0/1/2 (manual)");
+        telemetry.addLine("dpad left = fixed fire test 2->0->1 (analog gated)");
+        telemetry.addLine("dpad down = shoot 3 using sorting logic (analog gated)");
+        telemetry.addLine("dpad right = imu reset");
         telemetry.update();
 
         waitForStart();
@@ -134,7 +137,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 lastPipeline = apriltagPipeline;
             }
 
-            // imu reset moved so it doesn't conflict w fire test
+            // imu reset
             if (gamepad1.dpad_right) {
                 robot.imu.resetYaw();
             }
@@ -193,104 +196,94 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             // flywheel always on
             double target = robot.outtake('r');
 
-            // ===== fire test trigger (dpad left edge) =====
+            // ===== macro triggers (edge detect) =====
             boolean dpadLeft = gamepad1.dpad_left;
-            if (dpadLeft && !lastDpadLeft && !ftActive) {
+            boolean dpadDown = gamepad1.dpad_down;
+
+            if (dpadLeft && !lastDpadLeft && !ftActive && !s3Active) {
                 startFireTest();
             }
-            lastDpadLeft = dpadLeft;
+            if (dpadDown && !lastDpadDown && !ftActive && !s3Active) {
+                startSort3();
+            }
 
-            // if macro running, it owns transfer/cycle. don't run the normal state machine.
+            lastDpadLeft = dpadLeft;
+            lastDpadDown = dpadDown;
+
+            // cancel macro
+            if ((ftActive || s3Active) && gamepad1.a) {
+                stopAllMacros();
+            }
+
+            // ===== run active macros =====
             if (ftActive) {
-                // optional: let A cancel macro
-                if (gamepad1.a) {
-                    stopFireTest();
-                } else {
-                    runFireTestStep();
+                runFireTestStep();
+            } else if (s3Active) {
+                runSort3Step();
+            }
+
+            // if macro active, it owns cycle + transfer.
+            // still allow intake motor to be OFF to avoid fighting
+            if (ftActive || s3Active) {
+                robot.intake.setPower(0);
+
+                telemetry.addData("macro", ftActive ? ("FIRETEST " + ftState) : ("SORT3 " + s3State));
+            } else {
+                telemetry.addData("macro", "none");
+
+                // ===== normal manual controls =====
+
+                // manual state buttons (x/y/b just set cycle positions)
+                if (gamepad1.x) {
+                    state = RunState.SHOOT0;
+                } else if (gamepad1.y) {
+                    state = RunState.SHOOT1;
+                } else if (gamepad1.b) {
+                    state = RunState.SHOOT2;
+                } else if (gamepad1.a) {
+                    state = RunState.INTAKE;
                 }
 
-                // telemetry still updates
-                telemetry.addData("state", state);
-                telemetry.addData("firetest", ftState);
-                telemetry.addData("aim", aimOn ? "on" : "off");
-                telemetry.addData("tx", (tx == null ? "null" : String.format("%.2f", tx)));
-                telemetry.addData("rx", String.format("%.2f", rx));
-                telemetry.addData("kp", kp);
-                telemetry.addData("kd", kd);
-                telemetry.addData("ks", ks);
-                telemetry.addData("db", deadband);
-                telemetry.addData("target vel", target);
-                telemetry.addData("current vel", robot.launch.getVelocity());
-                telemetry.update();
+                // transfer manual MUST ALWAYS WORK here
+                if (gamepad1.left_bumper) {
+                    robot.transferUp();
+                } else {
+                    robot.transferDown();
+                }
 
-                sleep(20);
-                continue;
+                // intake
+                double in = gamepad1.right_trigger;
+                double outTrig = gamepad1.left_trigger;
+                double intakePow = outTrig - in;
+
+                if (Math.abs(intakePow) > 0.05) robot.intake.setPower(intakePow);
+                else robot.intake.setPower(0);
+
+                // cycle selection
+                switch (state) {
+                    case INTAKE:
+                        robot.setCycle(0);
+                        break;
+                    case SHOOT0:
+                        robot.setCycle(1);
+                        break;
+                    case SHOOT1:
+                        robot.setCycle(2);
+                        break;
+                    case SHOOT2:
+                        robot.setCycle(0);
+                        break;
+                }
             }
 
-            // ===== state buttons (single driver) =====
-            if (gamepad1.a) {
-                state = RunState.INTAKE;
-                shooting = 0;
-            } else if (gamepad1.x) {
-                state = RunState.SHOOT0;
-                if (shooting == 0) shootTime.reset();
-            } else if (gamepad1.y) {
-                state = RunState.SHOOT1;
-                if (shooting == 0) shootTime.reset();
-            } else if (gamepad1.b) {
-                state = RunState.SHOOT2;
-                if (shooting == 0) shootTime.reset();
-            }
-
-            // transfer manual (this is your fix: always evaluated every loop)
-            if (gamepad1.left_bumper) {
-                robot.transferUp();
-            } else {
-                robot.transferDown();
-            }
-
-            // intake power (single driver)
-            double in = gamepad1.right_trigger;
-            double outTrig = gamepad1.left_trigger;
-            double intakePow = outTrig - in;
-
-            switch (state) {
-                case INTAKE:
-                    robot.setCycle(0);
-                    // don't force transferDown here anymore, lb should always work
-                    if (Math.abs(intakePow) > 0.05) {
-                        robot.intake.setPower(intakePow);
-                    } else {
-                        robot.intake.setPower(0);
-                    }
-                    break;
-
-                case SHOOT0:
-                    robot.setCycle(1);
-                    robot.intake.setPower(0);
-                    break;
-
-                case SHOOT1:
-                    robot.setCycle(2);
-                    robot.intake.setPower(0);
-                    break;
-
-                case SHOOT2:
-                    robot.setCycle(0);
-                    robot.intake.setPower(0);
-                    break;
-            }
-
-            // telemetry
+            // ===== telemetry =====
             telemetry.addData("state", state);
-            telemetry.addData("firetest", "idle");
             telemetry.addData("aim", aimOn ? "on" : "off");
             telemetry.addData("tx", (tx == null ? "null" : String.format("%.2f", tx)));
             telemetry.addData("rx", String.format("%.2f", rx));
-            telemetry.addData("kp", kp);
-            telemetry.addData("kd", kd);
-            telemetry.addData("ks", ks);
-            telemetry.addData("db", deadband);
+
+            telemetry.addData("cycleIdx(cpos)", robot.cpos);
+            telemetry.addData("cycleV", robot.hasCycleAnalog() ? String.format("%.2f", robot.getCycleVoltage()) : "no analog");
 
             telemetry.addData("target vel", target);
             telemetry.addData("current vel", robot.launch.getVelocity());
@@ -312,26 +305,59 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         } catch (Exception ignored) { }
     }
 
-    // ===== fire test runner =====
+    // =======================
+    // DPAD LEFT: FIRE TEST 2->0->1 (analog gated)
+    // =======================
+
+    private void startFireTest() {
+        ftActive = true;
+        ftState = FireTestState.MOVE_2;
+        ftTimer.reset();
+        stableReads = 0;
+        robot.transferDown();
+    }
+
+    private void stopFireTest() {
+        ftActive = false;
+        ftState = FireTestState.IDLE;
+        robot.transferDown();
+    }
+
+    private void stopAllMacros() {
+        stopFireTest();
+        stopSort3();
+    }
+
+    private boolean alignedStable(int cycleIndex) {
+        if (!robot.hasCycleAnalog()) return true; // no analog -> don't block
+        boolean ok = robot.cycleAtIndex(cycleIndex);
+        if (ok) stableReads++;
+        else stableReads = 0;
+        return stableReads >= Robot.CYCLE_STABLE_COUNT;
+    }
+
     private void runFireTestStep() {
         switch (ftState) {
-            case TO_2:
+            case MOVE_2:
                 robot.setCycle(2);
                 robot.transferDown();
                 ftTimer.reset();
+                stableReads = 0;
                 ftState = FireTestState.WAIT_2;
                 break;
 
             case WAIT_2:
-                if (ftTimer.seconds() >= ft_cycle_settle + ft_feed_delay) {
-                    ftTimer.reset();
+                if (alignedStable(2) || ftTimer.seconds() >= alignTimeout) {
+                    ftTimer.reset(); // reuse timer for delay+feed
                     ftState = FireTestState.FEED_2;
                 }
                 break;
 
             case FEED_2:
+                // extra wait before opening transfer
+                if (ftTimer.seconds() < feedDelayAfterAligned) break;
                 robot.transferUp();
-                if (ftTimer.seconds() >= ft_feed_time) {
+                if (ftTimer.seconds() >= feedDelayAfterAligned + feedUpTime) {
                     robot.transferDown();
                     ftTimer.reset();
                     ftState = FireTestState.DOWN_2;
@@ -339,28 +365,30 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 break;
 
             case DOWN_2:
-                if (ftTimer.seconds() >= ft_down_time) {
-                    ftState = FireTestState.TO_0;
+                if (ftTimer.seconds() >= betweenShotsDown) {
+                    ftState = FireTestState.MOVE_0;
                 }
                 break;
 
-            case TO_0:
+            case MOVE_0:
                 robot.setCycle(0);
                 robot.transferDown();
                 ftTimer.reset();
+                stableReads = 0;
                 ftState = FireTestState.WAIT_0;
                 break;
 
             case WAIT_0:
-                if (ftTimer.seconds() >= ft_cycle_settle + ft_feed_delay) {
+                if (alignedStable(0) || ftTimer.seconds() >= alignTimeout) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED_0;
                 }
                 break;
 
             case FEED_0:
+                if (ftTimer.seconds() < feedDelayAfterAligned) break;
                 robot.transferUp();
-                if (ftTimer.seconds() >= ft_feed_time) {
+                if (ftTimer.seconds() >= feedDelayAfterAligned + feedUpTime) {
                     robot.transferDown();
                     ftTimer.reset();
                     ftState = FireTestState.DOWN_0;
@@ -368,28 +396,30 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 break;
 
             case DOWN_0:
-                if (ftTimer.seconds() >= ft_down_time) {
-                    ftState = FireTestState.TO_1;
+                if (ftTimer.seconds() >= betweenShotsDown) {
+                    ftState = FireTestState.MOVE_1;
                 }
                 break;
 
-            case TO_1:
+            case MOVE_1:
                 robot.setCycle(1);
                 robot.transferDown();
                 ftTimer.reset();
+                stableReads = 0;
                 ftState = FireTestState.WAIT_1;
                 break;
 
             case WAIT_1:
-                if (ftTimer.seconds() >= ft_cycle_settle + ft_feed_delay) {
+                if (alignedStable(1) || ftTimer.seconds() >= alignTimeout) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED_1;
                 }
                 break;
 
             case FEED_1:
+                if (ftTimer.seconds() < feedDelayAfterAligned) break;
                 robot.transferUp();
-                if (ftTimer.seconds() >= ft_feed_time) {
+                if (ftTimer.seconds() >= feedDelayAfterAligned + feedUpTime) {
                     robot.transferDown();
                     ftTimer.reset();
                     ftState = FireTestState.DOWN_1;
@@ -397,20 +427,160 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 break;
 
             case DOWN_1:
-                if (ftTimer.seconds() >= ft_down_time) {
+                if (ftTimer.seconds() >= betweenShotsDown) {
                     ftState = FireTestState.DONE;
                 }
                 break;
 
             case DONE:
-                stopFireTest();
-                break;
-
             default:
                 stopFireTest();
                 break;
         }
     }
+
+    // =======================
+    // DPAD DOWN: SORTING SHOOT 3 (uses RedTeleop-style selection)
+    // =======================
+
+    private void startSort3() {
+        // needs pipeline for sorting, otherwise it's pointless
+        if (robot.pipeline == null) return;
+
+        s3Active = true;
+        s3State = Sort3State.PICK_SHOT;
+        s3Timer.reset();
+        stableReads = 0;
+
+        s3ShotsDone = 0;
+        s3TargetCycle = -1;
+
+        robot.transferDown();
+    }
+
+    private void stopSort3() {
+        s3Active = false;
+        s3State = Sort3State.IDLE;
+        s3ShotsDone = 0;
+        s3TargetCycle = -1;
+        robot.transferDown();
+    }
+
+    private C920PanelsEOCV.C920Pipeline.SlotState[] getColorsSafe() {
+        if (robot.pipeline == null) return null;
+        return robot.pipeline.getSlotStates();
+    }
+
+    // RedTeleop-style selection:
+    // scan i=0..2, if colors[i] == want, setCycle((cpos + i + 1) % 3)
+    private int pickCycleForColor(C920PanelsEOCV.C920Pipeline.SlotState want) {
+        C920PanelsEOCV.C920Pipeline.SlotState[] colors = getColorsSafe();
+        if (colors == null) return -1;
+
+        // if the "fire slot" is already correct, don't rotate
+        int fireSlot = robot.getFireSlot();
+        if (colors[fireSlot] == want) {
+            return robot.cpos; // no change needed
+        }
+
+        for (int i = 0; i < 3; i++) {
+            if (colors[i] == want) {
+                return robot.cycleIndexForSlotIndex(i); // (cpos + i + 1) % 3
+            }
+        }
+        return -1;
+    }
+
+    // decide what to shoot THIS shot:
+    // if any PURPLE exists, shoot PURPLE, else if any GREEN exists, shoot GREEN, else stop.
+    private C920PanelsEOCV.C920Pipeline.SlotState chooseNextColorToShoot() {
+        C920PanelsEOCV.C920Pipeline.SlotState[] colors = getColorsSafe();
+        if (colors == null) return null;
+
+        boolean hasPurple = false;
+        boolean hasGreen = false;
+
+        for (int i = 0; i < 3; i++) {
+            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.PURPLE) hasPurple = true;
+            if (colors[i] == C920PanelsEOCV.C920Pipeline.SlotState.GREEN) hasGreen = true;
+        }
+
+        if (hasPurple) return C920PanelsEOCV.C920Pipeline.SlotState.PURPLE;
+        if (hasGreen)  return C920PanelsEOCV.C920Pipeline.SlotState.GREEN;
+        return null;
+    }
+
+    private void runSort3Step() {
+        switch (s3State) {
+            case PICK_SHOT: {
+                if (s3ShotsDone >= 3) {
+                    s3State = Sort3State.DONE;
+                    break;
+                }
+
+                C920PanelsEOCV.C920Pipeline.SlotState want = chooseNextColorToShoot();
+                if (want == null) {
+                    s3State = Sort3State.DONE;
+                    break;
+                }
+
+                int cyclePick = pickCycleForColor(want);
+                if (cyclePick < 0) {
+                    s3State = Sort3State.DONE;
+                    break;
+                }
+
+                s3TargetCycle = cyclePick;
+                s3State = Sort3State.MOVE;
+                break;
+            }
+
+            case MOVE:
+                robot.transferDown();
+                if (s3TargetCycle != robot.cpos) {
+                    robot.setCycle(s3TargetCycle);
+                }
+                s3Timer.reset();
+                stableReads = 0;
+                s3State = Sort3State.WAIT_ALIGN;
+                break;
+
+            case WAIT_ALIGN:
+                if (alignedStable(s3TargetCycle) || s3Timer.seconds() >= alignTimeout) {
+                    s3Timer.reset();
+                    s3State = Sort3State.FEED;
+                }
+                break;
+
+            case FEED:
+                // extra wait before opening transfer
+                if (s3Timer.seconds() < feedDelayAfterAligned) break;
+
+                robot.transferUp();
+                if (s3Timer.seconds() >= feedDelayAfterAligned + feedUpTime) {
+                    robot.transferDown();
+                    s3Timer.reset();
+                    s3State = Sort3State.DOWN;
+                }
+                break;
+
+            case DOWN:
+                if (s3Timer.seconds() >= betweenShotsDown) {
+                    s3ShotsDone++;
+                    s3State = Sort3State.PICK_SHOT;
+                }
+                break;
+
+            case DONE:
+            default:
+                stopSort3();
+                break;
+        }
+    }
+
+    // =======================
+    // Limelight + PID helpers
+    // =======================
 
     private Double getTxForTag(int id) {
         LLResult result = robot.limelight.getLatestResult();
