@@ -8,7 +8,6 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -43,8 +42,6 @@ motors
 servos
 1 - transfer
 4 - cycle
-
-axon max analog feedback wire -> analog input named "cycleAnalog"
 */
 @Configurable
 public class Robot {
@@ -57,7 +54,7 @@ public class Robot {
 
     public static LinearOpMode opMode;
 
-    public static double transferOne = 0;
+    public static double transferOne = 0.0;
     public static double transferTwo = 0.38;
 
     public static double[] cyclePos = {0.055, 0.343, 0.615};
@@ -65,14 +62,21 @@ public class Robot {
 
     public final Limelight3A limelight;
 
-    public static double cycleTime = 0.9;     // fallback timing
-    public static double outTime = 0.5;
-    public static double transferTime = 0.2;
+    public static double cycleTime = 0.9;     // todo tune
+    public static double outTime = 0.5;       // todo tune
+    public static double transferTime = 0.2;  // todo tune
+
+    // ===== one-person macro timings (shared) =====
+// Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
+    public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
+    public static double FIRE_FEED_DELAY = 0.25;        // extra delay before transferUp
+    public static double FIRE_FEED_TIME = 0.18;         // transferUp duration
+    public static double FIRE_DOWN_TIME = 0.40;         // time between shots with transferDown
 
     // distance to goal (updated when tag is seen)
     private double x = 128;
 
-    // ===== aim pid (tx -> rx) tunables =====
+    // ===== aim pid (tx -> rx) tunables (for sharing / panels, not used inside Robot yet) =====
     public static double AIM_Kp = 0.016;
     public static double AIM_Ki = 0.0;
     public static double AIM_Kd = 0.0017;
@@ -82,15 +86,7 @@ public class Robot {
     public static double AIM_OFFSET_RED = 0.0;
     public static double AIM_OFFSET_BLUE = 0.0;
 
-    // ===== cycle analog feedback (axon max) =====
-    public AnalogInput cycleAnalog;
-
-    // tune these by printing voltage at setCycle(0) and setCycle(2)
-    public static double CYCLE_V_MIN = 0.30; // volts when servoPos ~0.0
-    public static double CYCLE_V_MAX = 2.90; // volts when servoPos ~1.0
-    public static double CYCLE_V_TOL = 0.05; // tolerance volts
-
-    // vision toggle
+    // set false in an opmode before new Robot(this) if you don't want camera init
     public static boolean INIT_VISION = true;
 
     // vision
@@ -151,13 +147,6 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
-        // cycle analog (optional)
-        try {
-            cycleAnalog = hardwareMap.get(AnalogInput.class, "cycleAnalog");
-        } catch (Exception ignored) {
-            cycleAnalog = null;
-        }
-
         // vision (optional)
         if (INIT_VISION) {
             startVision();
@@ -217,44 +206,10 @@ public class Robot {
         intake.setPower(intakePower);
     }
 
-    // ===== cycle analog helpers =====
+    // placeholder so tuner/teleop can call it (pid state is in those opmodes)
+    public void resetAim() { }
 
-    public boolean hasCycleAnalog() {
-        return cycleAnalog != null;
-    }
-
-    public double getCycleVoltage() {
-        if (cycleAnalog == null) return -1.0;
-        return cycleAnalog.getVoltage();
-    }
-
-    private double expectedCycleVoltage(double servoPos) {
-        return CYCLE_V_MIN + servoPos * (CYCLE_V_MAX - CYCLE_V_MIN);
-    }
-
-    public boolean cycleAtServoPos(double servoPos) {
-        if (cycleAnalog == null) return false;
-        double v = getCycleVoltage();
-        double vt = expectedCycleVoltage(servoPos);
-        return Math.abs(v - vt) <= CYCLE_V_TOL;
-    }
-
-    public boolean cycleAtIndex(int idx) {
-        idx = Range.clip(idx, 0, 2);
-        return cycleAtServoPos(cyclePos[idx]);
-    }
-
-    public int getFireSlot() {
-        return (cpos + 1) % 3;
-    }
-
-    public int cycleIndexForSlotIndex(int slotIndex) {
-        // IMPORTANT: +1 because "next chamber" is the one that fires
-        return (cpos + slotIndex + 1) % 3;
-    }
-
-    // ===== mechanisms =====
-
+    // mechanisms
     public void setCycle(int pos) {
         cpos = pos;
         cycle.setPosition(cyclePos[pos]);
@@ -272,7 +227,15 @@ public class Robot {
         transfer.setPosition(transferTwo);
     }
 
-    // flywheel velocity control (unchanged, just null-safe)
+    // motor test helper (optional)
+    public void setMotor(int motor, double power) {
+        if (motor == 0) fl.setPower(power);
+        else if (motor == 1) fr.setPower(power);
+        else if (motor == 2) bl.setPower(power);
+        else if (motor == 3) br.setPower(power);
+    }
+
+    // flywheel velocity control (same math you had)
     public double outtake(char color) {
         double Kv = 0.000379;
         double Kp = 0.001;
@@ -290,7 +253,7 @@ public class Robot {
                 for (LLResultTypes.FiducialResult fiducial : fiducials) {
                     if (fiducial.getFiducialId() == targetId) {
                         double y = fiducial.getTargetYDegrees();
-                        angle = Math.toRadians(y + 21);
+                        angle = Math.toRadians(y + 21); // 21 = limelight mount tilt
                         break;
                     }
                 }
@@ -298,7 +261,7 @@ public class Robot {
         }
 
         if (angle != -1) {
-            x = (goalHeight - limelightHeight) / Math.tan(angle) + 6;
+            x = (goalHeight - limelightHeight) / Math.tan(angle) + 6; // +6 = limelight->shooter offset
         }
 
         double targetVelo = 112.57 * x * Math.pow(0.9035693 * x - 29, -0.5);

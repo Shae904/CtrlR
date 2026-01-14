@@ -30,14 +30,8 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
     public RunState state;
 
-    // ===== aim pid (panels) =====
-    public static double kp = 0.016;
-    public static double ki = 0.0;
-    public static double kd = 0.0017;
-    public static double ks = 0.06;
-    public static double deadband = 0.4;
-
-    public static double aimOffsetDeg = 0.0;
+    // ===== aim pid (shared in Robot.java) =====
+    // Uses Robot.AIM_Kp/AIM_Ki/AIM_Kd/AIM_Ks/AIM_DEADBAND and Robot.AIM_OFFSET_RED
     public static double maxTurn = 1.0;
 
     public static int apriltagPipeline = 0;
@@ -82,14 +76,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         return p;
     }
 
-    // ===== analog gating settings =====
-    public static int analogStableCount = 3;     // consecutive "at target" reads required
-    public static double settleFallbackTime = 0.35; // if analog missing, wait this instead
-
-    // ===== macro timings (still used AFTER "at target", per your request) =====
-    public static double feedDelay = 0.25;  // wait a bit more before transferUp
-    public static double feedTime  = 0.18;  // how long transfer stays up
-    public static double downTime  = 0.40;  // wait between shots (transfer down)
 
     // ===== Fire test macro (DPAD LEFT): fixed order 2 -> 0 -> 1 =====
     private enum FireTestState {
@@ -104,7 +90,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
     private final int[] ftOrder = new int[] {2, 0, 1};
     private int ftIndex = 0;
-    private int stableCtr = 0;
     private int currentTargetCycle = 0;
 
     private boolean lastDpadLeft = false;
@@ -114,7 +99,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         ftActive = true;
         ftState = FireTestState.MOVE;
         ftIndex = 0;
-        stableCtr = 0;
         ftTimer.reset();
     }
 
@@ -136,7 +120,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     private boolean s3Active = false;
 
     private int s3Shot = 0;
-    private int s3StableCtr = 0;
     private int s3TargetCycle = 0;
 
     private void startSort3() {
@@ -147,7 +130,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         s3Active = true;
         s3State = Sort3State.PICK_AND_MOVE;
         s3Shot = 0;
-        s3StableCtr = 0;
         s3Timer.reset();
     }
 
@@ -217,7 +199,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                     resetPid();
                     rx = rxManual;
                 } else {
-                    rx = pidFromTx(tx, aimOffsetDeg);
+                    rx = pidFromTx(tx, Robot.AIM_OFFSET_RED);
                 }
             } else {
                 resetPid();
@@ -343,11 +325,10 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             telemetry.addData("aim", aimOn ? "on" : "off");
             telemetry.addData("tx", (tx == null ? "null" : String.format("%.2f", tx)));
             telemetry.addData("rx", String.format("%.2f", rx));
-            telemetry.addData("kp", kp);
-            telemetry.addData("kd", kd);
-            telemetry.addData("ks", ks);
-            telemetry.addData("db", deadband);
-            telemetry.addData("cycleV", robot.hasCycleAnalog() ? String.format("%.2f", robot.getCycleVoltage()) : "none");
+            telemetry.addData("kp", Robot.AIM_Kp);
+            telemetry.addData("kd", Robot.AIM_Kd);
+            telemetry.addData("ks", Robot.AIM_Ks);
+            telemetry.addData("db", Robot.AIM_DEADBAND);
             telemetry.addData("target vel", target);
             telemetry.addData("current vel", robot.launch.getVelocity());
             telemetry.update();
@@ -368,39 +349,29 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         } catch (Exception ignored) { }
     }
 
-    // ===== FireTest: 2 -> 0 -> 1 using analog gating =====
+    // ===== FireTest: 2 -> 0 -> 1 using time-based settle =====
     private void runFireTestStep() {
         switch (ftState) {
             case MOVE: {
                 currentTargetCycle = ftOrder[ftIndex];
                 robot.setCycle(currentTargetCycle);
                 robot.transferDown();
-                stableCtr = 0;
                 ftTimer.reset();
                 ftState = FireTestState.WAIT_AT_TARGET;
                 break;
             }
 
             case WAIT_AT_TARGET: {
-                if (robot.hasCycleAnalog()) {
-                    if (robot.cycleAtIndex(currentTargetCycle)) stableCtr++;
-                    else stableCtr = 0;
-
-                    if (stableCtr >= analogStableCount) {
-                        ftTimer.reset();
-                        ftState = FireTestState.WAIT_FEED_DELAY;
-                    }
-                } else {
-                    if (ftTimer.seconds() >= settleFallbackTime) {
-                        ftTimer.reset();
-                        ftState = FireTestState.WAIT_FEED_DELAY;
-                    }
+                // No analog gating: just wait for the cycler servo to settle
+                if (ftTimer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
+                    ftTimer.reset();
+                    ftState = FireTestState.WAIT_FEED_DELAY;
                 }
                 break;
             }
 
             case WAIT_FEED_DELAY: {
-                if (ftTimer.seconds() >= feedDelay) {
+                if (ftTimer.seconds() >= Robot.FIRE_FEED_DELAY) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -409,7 +380,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
             case FEED: {
                 robot.transferUp();
-                if (ftTimer.seconds() >= feedTime) {
+                if (ftTimer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
                     ftTimer.reset();
                     ftState = FireTestState.DOWN;
@@ -418,7 +389,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             }
 
             case DOWN: {
-                if (ftTimer.seconds() >= downTime) {
+                if (ftTimer.seconds() >= Robot.FIRE_DOWN_TIME) {
                     ftState = FireTestState.NEXT;
                 }
                 break;
@@ -475,32 +446,22 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 robot.setCycle(s3TargetCycle);
                 robot.transferDown();
 
-                s3StableCtr = 0;
                 s3Timer.reset();
                 s3State = Sort3State.WAIT_AT_TARGET;
                 break;
             }
 
             case WAIT_AT_TARGET: {
-                if (robot.hasCycleAnalog()) {
-                    if (robot.cycleAtIndex(s3TargetCycle)) s3StableCtr++;
-                    else s3StableCtr = 0;
-
-                    if (s3StableCtr >= analogStableCount) {
-                        s3Timer.reset();
-                        s3State = Sort3State.WAIT_FEED_DELAY;
-                    }
-                } else {
-                    if (s3Timer.seconds() >= settleFallbackTime) {
-                        s3Timer.reset();
-                        s3State = Sort3State.WAIT_FEED_DELAY;
-                    }
+                // No analog gating: just wait for the cycler servo to settle
+                if (s3Timer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
+                    s3Timer.reset();
+                    s3State = Sort3State.WAIT_FEED_DELAY;
                 }
                 break;
             }
 
             case WAIT_FEED_DELAY: {
-                if (s3Timer.seconds() >= feedDelay) {
+                if (s3Timer.seconds() >= Robot.FIRE_FEED_DELAY) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
@@ -509,7 +470,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
             case FEED: {
                 robot.transferUp();
-                if (s3Timer.seconds() >= feedTime) {
+                if (s3Timer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
                     s3Timer.reset();
                     s3State = Sort3State.DOWN;
@@ -518,7 +479,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             }
 
             case DOWN: {
-                if (s3Timer.seconds() >= downTime) {
+                if (s3Timer.seconds() >= Robot.FIRE_DOWN_TIME) {
                     s3State = Sort3State.NEXT;
                 }
                 break;
@@ -549,7 +510,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         telemetry.addData("aim", gamepad1.right_bumper ? "on" : "off");
         telemetry.addData("tx", (tx == null ? "null" : String.format("%.2f", tx)));
         telemetry.addData("rx", String.format("%.2f", rx));
-        telemetry.addData("cycleV", robot.hasCycleAnalog() ? String.format("%.2f", robot.getCycleVoltage()) : "none");
         telemetry.addData("target vel", target);
         telemetry.addData("current vel", robot.launch.getVelocity());
         telemetry.update();
@@ -578,7 +538,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
         double err = txDeg - offsetDeg;
 
-        if (Math.abs(err) < deadband) {
+        if (Math.abs(err) < Robot.AIM_DEADBAND) {
             integ = 0.0;
             lastErr = err;
             return 0.0;
@@ -588,7 +548,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
         double deriv = (err - lastErr) / dt;
         lastErr = err;
 
-        double out = kp * err + ki * integ + kd * deriv + ks * Math.signum(err);
+        double out = Robot.AIM_Kp * err + Robot.AIM_Ki * integ + Robot.AIM_Kd * deriv + Robot.AIM_Ks * Math.signum(err);
         return Range.clip(out, -1.0, 1.0);
     }
 }

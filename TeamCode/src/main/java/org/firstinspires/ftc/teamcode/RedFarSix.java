@@ -55,12 +55,7 @@ public class RedFarSix extends LinearOpMode {
     public static int apriltagPipeline = 0;
     public static int speakerTagIdRed = 24;
 
-    public static double aimKp = 0.016;
-    public static double aimKi = 0.0;
-    public static double aimKd = 0.0017;
-    public static double aimKs = 0.06;      // static friction kick
-    public static double aimDeadband = 0.4; // degrees
-    public static double aimOffsetDeg = 0.0;
+
     public static double aimMaxTurn = 0.6;  // keep it calmer in auton
     public static double aimTimeoutSec = 1.2;
 
@@ -97,7 +92,7 @@ public class RedFarSix extends LinearOpMode {
 
         double err = txDeg - offsetDeg;
 
-        if (Math.abs(err) < aimDeadband) {
+        if (Math.abs(err) < Robot.AIM_DEADBAND) {
             // stop + clear i near target
             aimInteg = 0.0;
             aimLastErr = err;
@@ -108,7 +103,7 @@ public class RedFarSix extends LinearOpMode {
         double deriv = (err - aimLastErr) / dt;
         aimLastErr = err;
 
-        double out = aimKp * err + aimKi * aimInteg + aimKd * deriv + aimKs * Math.signum(err);
+        double out = Robot.AIM_Kp * err + Robot.AIM_Ki * aimInteg + Robot.AIM_Kd * deriv + Robot.AIM_Ks * Math.signum(err);
         return Range.clip(out, -1.0, 1.0);
     }
 
@@ -139,8 +134,8 @@ public class RedFarSix extends LinearOpMode {
                 break;
             }
 
-            double err = tx - aimOffsetDeg;
-            if (Math.abs(err) < aimDeadband) {
+            double err = tx - Robot.AIM_OFFSET_RED;
+            if (Math.abs(err) < Robot.AIM_DEADBAND) {
                 stableCount++;
             } else {
                 stableCount = 0;
@@ -150,7 +145,7 @@ public class RedFarSix extends LinearOpMode {
                 break; // locked
             }
 
-            double turn = aimPidFromTx(tx, aimOffsetDeg);
+            double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
             turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
 
             // rotate in place (mecanum)
