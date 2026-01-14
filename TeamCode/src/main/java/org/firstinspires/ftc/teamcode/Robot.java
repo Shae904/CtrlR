@@ -1,3 +1,4 @@
+// Robot.java
 package org.firstinspires.ftc.teamcode;
 
 import com.bylazar.configurables.annotations.Configurable;
@@ -59,13 +60,12 @@ public class Robot {
     public static double transferOne = 0;
     public static double transferTwo = 0.38;
 
-    // 0..2 cycle indices
     public static double[] cyclePos = {0.055, 0.343, 0.615};
     public int cpos = 0;
 
     public final Limelight3A limelight;
 
-    public static double cycleTime = 0.9;     // fallback if you ever need it
+    public static double cycleTime = 0.9;     // fallback timing
     public static double outTime = 0.5;
     public static double transferTime = 0.2;
 
@@ -86,14 +86,11 @@ public class Robot {
     public AnalogInput cycleAnalog;
 
     // tune these by printing voltage at setCycle(0) and setCycle(2)
-    public static double CYCLE_V_MIN = 0.30; // volts at servoPos ~0.0
-    public static double CYCLE_V_MAX = 2.90; // volts at servoPos ~1.0
-    public static double CYCLE_V_TOL = 0.05; // volts tolerance = "close enough"
+    public static double CYCLE_V_MIN = 0.30; // volts when servoPos ~0.0
+    public static double CYCLE_V_MAX = 2.90; // volts when servoPos ~1.0
+    public static double CYCLE_V_TOL = 0.05; // tolerance volts
 
-    // how many consecutive reads must be in-tolerance to count as aligned
-    public static int CYCLE_STABLE_COUNT = 3;
-
-    // set false in an opmode before new Robot(this) if you don't want camera init
+    // vision toggle
     public static boolean INIT_VISION = true;
 
     // vision
@@ -154,7 +151,7 @@ public class Robot {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
 
-        // cycle analog (optional but recommended)
+        // cycle analog (optional)
         try {
             cycleAnalog = hardwareMap.get(AnalogInput.class, "cycleAnalog");
         } catch (Exception ignored) {
@@ -216,6 +213,10 @@ public class Robot {
         return limelight;
     }
 
+    public void setIntakePower(double intakePower) {
+        intake.setPower(intakePower);
+    }
+
     // ===== cycle analog helpers =====
 
     public boolean hasCycleAnalog() {
@@ -228,7 +229,6 @@ public class Robot {
     }
 
     private double expectedCycleVoltage(double servoPos) {
-        // assumes roughly linear mapping (good enough for gating)
         return CYCLE_V_MIN + servoPos * (CYCLE_V_MAX - CYCLE_V_MIN);
     }
 
@@ -239,26 +239,21 @@ public class Robot {
         return Math.abs(v - vt) <= CYCLE_V_TOL;
     }
 
-    public boolean cycleAtIndex(int cycleIndex) {
-        if (cycleIndex < 0 || cycleIndex > 2) return false;
-        return cycleAtServoPos(cyclePos[cycleIndex]);
+    public boolean cycleAtIndex(int idx) {
+        idx = Range.clip(idx, 0, 2);
+        return cycleAtServoPos(cyclePos[idx]);
     }
 
-    // chamber that fires if you do nothing
     public int getFireSlot() {
         return (cpos + 1) % 3;
     }
 
-    // IMPORTANT: +1 because “next chamber” is the one that fires
     public int cycleIndexForSlotIndex(int slotIndex) {
+        // IMPORTANT: +1 because "next chamber" is the one that fires
         return (cpos + slotIndex + 1) % 3;
     }
 
     // ===== mechanisms =====
-
-    public void setIntakePower(double intakePower) {
-        intake.setPower(intakePower);
-    }
 
     public void setCycle(int pos) {
         cpos = pos;
@@ -277,7 +272,7 @@ public class Robot {
         transfer.setPosition(transferTwo);
     }
 
-    // flywheel velocity control
+    // flywheel velocity control (unchanged, just null-safe)
     public double outtake(char color) {
         double Kv = 0.000379;
         double Kp = 0.001;
