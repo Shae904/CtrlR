@@ -64,13 +64,16 @@ public class Robot {
 
     public static double cycleTime = 0.9;     // todo tune
     public static double outTime = 0.5;       // todo tune
+
+    public static double launchMult = 143.4;
+
     public static double transferTime = 0.2;  // todo tune
 
     // ===== one-person macro timings (shared) =====
 // Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
     public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
     public static double FIRE_FEED_DELAY = 0.25;        // extra delay before transferUp
-    public static double FIRE_FEED_TIME = 0.18;         // transferUp duration
+    public static double FIRE_FEED_TIME = 0.35;         // transferUp duration (raise if arm barely lifts ball)
     public static double FIRE_DOWN_TIME = 0.40;         // time between shots with transferDown
 
     // distance to goal (updated when tag is seen)
@@ -264,7 +267,7 @@ public class Robot {
             x = (goalHeight - limelightHeight) / Math.tan(angle) + 6; // +6 = limelight->shooter offset
         }
 
-        double targetVelo = 112.57 * x * Math.pow(0.9035693 * x - 29, -0.5);
+        double targetVelo = launchMult * x * Math.pow(1.16825863336 * x - 29, -0.5);
         double ff = Kv * targetVelo;
 
         double currentVelo = launch.getVelocity();
