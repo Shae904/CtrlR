@@ -31,6 +31,7 @@ public class RedCloseNine extends LinearOpMode {
     // ===== timing / behavior =====
     public static double INTAKE_FULL = -1;   // same direction as your RedFarSix update()
     public static double INTAKE_HALF = -0.5; // conserve voltage while traveling to shoot
+    public static double INTAKE_DRIVE_MAX_POWER = 0.7; // drivetrain speed cap while on intake paths
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
     public static double CYCLE_SETTLE = 0.12; // let cycler servo move a bit
@@ -55,6 +56,7 @@ public class RedCloseNine extends LinearOpMode {
     public static double AIMLOCK_POS_TOL   = 1.6;    // inches to consider "at shoot pose"
     public static double AIMLOCK_TIMEOUT   = 1.4;    // seconds max once aimlock starts (per shoot leg)
     public static double PREAIM_MIN_TIME   = 0.0;    // keep 0 unless you want to force some aimlock time
+    public static double AIMLOCK_START_DIST = 18.0; // inches: don't engage aimlock until we're close to shoot pose
 
     private double aimInteg = 0.0;
     private double aimLastErr = 0.0;
@@ -316,31 +318,36 @@ public class RedCloseNine extends LinearOpMode {
         robot.br.setPower(br);
     }
 
-    /** Aimlock override while still calling follower.update() for localization. */
-    private void aimlockDriveToward(Pose targetPose, Double txOrNull) {
-        // Update pose estimate via follower's localizer (we call follower.update() in the loop)
-        Pose cur = follower.getPose();
-        double ex = targetPose.getX() - cur.getX();
-        double ey = targetPose.getY() - cur.getY();
-
-        // Field vector scaled
-        double vxField = Range.clip(AIMLOCK_KP_FIELD * ex, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
-        double vyField = Range.clip(AIMLOCK_KP_FIELD * ey, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
-
-        // Convert field -> robot frame using IMU heading
-        double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
-        double rotX = vxField * Math.cos(-botHeading) - vyField * Math.sin(-botHeading);
-        double rotY = vxField * Math.sin(-botHeading) + vyField * Math.cos(-botHeading);
-
-        // Rotation from tag (if visible)
-        double rx = 0.0;
-        if (txOrNull != null) {
-            rx = aimPidFromTx(txOrNull, Robot.AIM_OFFSET_RED);
-            rx = Range.clip(rx, -aimMaxTurn, aimMaxTurn);
-        }
-
-        setDrivePowers(rotY, rotX, rx);
+    /** Scale whatever motor powers Pedro just set (used to slow down intake legs). */
+    private void scaleCurrentDrivePowers(double scale) {
+        if (scale >= 0.999) return;
+        robot.fl.setPower(robot.fl.getPower() * scale);
+        robot.bl.setPower(robot.bl.getPower() * scale);
+        robot.fr.setPower(robot.fr.getPower() * scale);
+        robot.br.setPower(robot.br.getPower() * scale);
     }
+
+    /**
+     * Add a rotation term on top of whatever Pedro just commanded.
+     * This preserves Pedro's translation/path tracking while overriding heading.
+     */
+    private void addTurnOnTopOfCurrentPowers(double turn) {
+        double fl = robot.fl.getPower() + turn;
+        double bl = robot.bl.getPower() + turn;
+        double fr = robot.fr.getPower() - turn;
+        double br = robot.br.getPower() - turn;
+
+        double max = Math.max(1.0,
+                Math.max(Math.abs(fl),
+                        Math.max(Math.abs(bl),
+                                Math.max(Math.abs(fr), Math.abs(br)))));
+
+        robot.fl.setPower(fl / max);
+        robot.bl.setPower(bl / max);
+        robot.fr.setPower(fr / max);
+        robot.br.setPower(br / max);
+    }
+
 
     /** Shoot ONE ball using your pattern + OpenCV slot logic. */
     private void shootOne(int count) {
@@ -414,10 +421,8 @@ public class RedCloseNine extends LinearOpMode {
     }
 
     /**
-     * Follow a shoot path with Pedro heading UNTIL the speaker tag is seen.
-     * Once tag is seen, we "override" heading by taking over drivetrain (aimlock) while still
-     * calling follower.update() so localization keeps up.
-     *
+     * Follow a shoot path with Pedro heading UNTIL the speaker tag is seen and we're close enough.
+     * Once tag is seen and close, override heading ONLY (add turn on top of Pedro translation).
      * Intake always runs (half), flywheel always on, and we preselect the FIRST ball while moving.
      */
     private void followToShoot(PathChain path, Pose shootPose) {
@@ -447,27 +452,29 @@ public class RedCloseNine extends LinearOpMode {
             // check tag
             Double tx = getTxForTag(speakerTagIdRed);
 
-            if (!aimLock && tx != null) {
-                // FIRST time we see the tag: switch into aimlock override
+            // Distance to the shoot pose (used to delay aimlock so we don't cut the line early)
+            Pose cur = follower.getPose();
+            double dist = Math.hypot(shootPose.getX() - cur.getX(), shootPose.getY() - cur.getY());
+
+            if (!aimLock && tx != null && dist <= AIMLOCK_START_DIST) {
+                // FIRST time we see the tag AND we're close enough: start heading override
                 aimLock = true;
                 resetAimPid();
                 aimLockTimer.reset();
             }
 
             if (aimLock) {
-                // If we lose the tag later, keep translation control but rotation = 0
-                aimlockDriveToward(shootPose, tx);
-
-                // stop condition: close enough OR timeout (so we never stall)
-                Pose cur = follower.getPose();
-                double dist = Math.hypot(shootPose.getX() - cur.getX(), shootPose.getY() - cur.getY());
-
-                if ((aimLockTimer.seconds() >= PREAIM_MIN_TIME && dist <= AIMLOCK_POS_TOL)
-                        || (aimLockTimer.seconds() >= AIMLOCK_TIMEOUT)) {
-                    // let pedro finish "busy" by continuing the loop;
-                    // but we can force stop driving now:
-                    setDrivePowers(0, 0, 0);
-                    break;
+                // Stop aimlock if it's been active too long (never stall / never fight forever)
+                if (aimLockTimer.seconds() >= AIMLOCK_TIMEOUT) {
+                    aimLock = false;
+                } else {
+                    // Override heading only: keep Pedro translation, add our turn on top
+                    double turn = 0.0;
+                    if (tx != null) {
+                        turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
+                        turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
+                    }
+                    addTurnOnTopOfCurrentPowers(turn);
                 }
             }
 
@@ -480,12 +487,6 @@ public class RedCloseNine extends LinearOpMode {
 
         // stop drivetrain at end of leg
         setDrivePowers(0, 0, 0);
-
-        // If Pedro is still "busy" for a moment, give it a couple updates to settle pose.
-        for (int i = 0; i < 3 && opModeIsActive(); i++) {
-            follower.update();
-            sleep(10);
-        }
     }
 
     /** Follow an intake path; intake FULL (same direction/speed behavior as your RedFarSix). */
@@ -494,6 +495,8 @@ public class RedCloseNine extends LinearOpMode {
 
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
+            // Slow down drivetrain while on intake legs
+            scaleCurrentDrivePowers(INTAKE_DRIVE_MAX_POWER);
             robot.outtake('r');
 
             // FULL intake on intake legs
@@ -527,7 +530,7 @@ public class RedCloseNine extends LinearOpMode {
             pattern = readPatternFromLimelight(pattern);
             robot.setCycle(0);
             robot.transferDown();
-            robot.intake.setPower(INTAKE_HALF);
+            robot.intake.setPower(0);
 
             telemetry.addData("pattern(tag 21-23)", pattern);
             telemetry.addData("meaning", pattern == 21 ? "GPP" : (pattern == 22 ? "PGP" : "PPG"));
@@ -535,6 +538,8 @@ public class RedCloseNine extends LinearOpMode {
         }
 
         waitForStart();
+        robot.intake.setPower(INTAKE_HALF);
+        robot.transferDown();
         opTimer.reset();
 
         state = State.START_TO_FIRST_SHOOT;
