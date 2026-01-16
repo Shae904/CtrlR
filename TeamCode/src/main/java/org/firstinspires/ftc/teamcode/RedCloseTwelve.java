@@ -15,6 +15,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.List;
@@ -28,17 +29,17 @@ public class RedCloseTwelve extends LinearOpMode {
     public Limelight3A limelight;
 
     // ===== timing / behavior =====
-    public static double INTAKE_FULL = -1;  // same direction as your RedFarSix update()
-    public static double INTAKE_HALF = -0.5;  // conserve voltage while traveling to shoot
+    public static double INTAKE_FULL = -1;   // same direction as your RedFarSix update()
+    public static double INTAKE_HALF = -0.5; // conserve voltage while traveling to shoot
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
-    public static double CYCLE_SETTLE = 0.12;  // let cycler servo move a bit
-    public static double FEED_DELAY   = 0.25;  // wait before transferUp (your teleop macro style)
-    public static double FEED_TIME    = 0.28;  // HOLD transferUp (increase if it "barely swings up")
-    public static double DOWN_TIME    = 0.40;  // time between shots (transfer down)
+    public static double CYCLE_SETTLE = 0.12; // let cycler servo move a bit
+    public static double FEED_DELAY   = 0.25; // wait before transferUp (your teleop macro style)
+    public static double FEED_TIME    = 0.28; // HOLD transferUp (increase if it "barely swings up")
+    public static double DOWN_TIME    = 0.40; // time between shots (transfer down)
 
     // ===== pattern =====
-    // tag 21..23 -> pattern; green index = (pattern - 21)  (0..2)
+    // tag 21..23 -> pattern; green index = (pattern - 21) (0..2)
     public static int pattern = 21;
 
     // ===== auto aim =====
@@ -47,6 +48,13 @@ public class RedCloseTwelve extends LinearOpMode {
 
     public static double aimMaxTurn = 0.6;
     public static double aimTimeoutSec = 1.2;
+
+    // ===== aimlock while moving to shoot (override heading once tag is seen) =====
+    public static double AIMLOCK_MAX_DRIVE = 0.55;   // translation cap while aimlock is active
+    public static double AIMLOCK_KP_FIELD  = 0.045;  // position P in FIELD inches -> drive command
+    public static double AIMLOCK_POS_TOL   = 1.6;    // inches to consider "at shoot pose"
+    public static double AIMLOCK_TIMEOUT   = 1.4;    // seconds max once aimlock starts (per shoot leg)
+    public static double PREAIM_MIN_TIME   = 0.0;    // keep 0 unless you want to force some aimlock time
 
     private double aimInteg = 0.0;
     private double aimLastErr = 0.0;
@@ -89,39 +97,43 @@ public class RedCloseTwelve extends LinearOpMode {
         double deriv = (err - aimLastErr) / dt;
         aimLastErr = err;
 
-        double out = Robot.AIM_Kp * err + Robot.AIM_Ki * aimInteg + Robot.AIM_Kd * deriv + Robot.AIM_Ks * Math.signum(err);
+        double out = Robot.AIM_Kp * err
+                + Robot.AIM_Ki * aimInteg
+                + Robot.AIM_Kd * deriv
+                + Robot.AIM_Ks * Math.signum(err);
+
         return Range.clip(out, -1.0, 1.0);
     }
 
-    /** Aim in place right before shooting. */
-    private void aimAtSpeakerTag() {
+    /**
+     * Short aim "nudge" used right before shooting to let heading catch up.
+     * If tag visible, apply PID turn for up to `seconds`; else hold still.
+     */
+    private void microAimAtSpeakerTag(double seconds) {
         resetAimPid();
         try { limelight.pipelineSwitch(apriltagPipeline); } catch (Exception ignored) {}
 
         ElapsedTime t = new ElapsedTime();
-        int stableCount = 0;
-        final int neededStable = 5;
 
-        while (opModeIsActive() && t.seconds() < aimTimeoutSec) {
-            // keep flywheel spun
+        while (opModeIsActive() && t.seconds() < seconds) {
             robot.outtake('r');
+            robot.intake.setPower(INTAKE_HALF);
 
             Double tx = getTxForTag(speakerTagIdRed);
-            if (tx == null) break;
+            if (tx != null) {
+                double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
+                turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
 
-            double err = tx - Robot.AIM_OFFSET_RED;
-            if (Math.abs(err) < Robot.AIM_DEADBAND) stableCount++;
-            else stableCount = 0;
-
-            if (stableCount >= neededStable) break;
-
-            double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
-            turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
-
-            robot.fl.setPower( turn);
-            robot.bl.setPower( turn);
-            robot.fr.setPower(-turn);
-            robot.br.setPower(-turn);
+                robot.fl.setPower( turn);
+                robot.bl.setPower( turn);
+                robot.fr.setPower(-turn);
+                robot.br.setPower(-turn);
+            } else {
+                robot.fl.setPower(0);
+                robot.bl.setPower(0);
+                robot.fr.setPower(0);
+                robot.br.setPower(0);
+            }
 
             sleep(20);
         }
@@ -217,6 +229,12 @@ public class RedCloseTwelve extends LinearOpMode {
 
     private Paths paths;
 
+    // ===== shoot poses (endpoints of the shoot legs) =====
+    private static final Pose FIRST_SHOOT_POSE  = new Pose(97.722, 105.854, Math.toRadians(45));
+    private static final Pose SECOND_SHOOT_POSE = new Pose(86.285,  93.272, Math.toRadians(45));
+    private static final Pose THIRD_SHOOT_POSE  = new Pose(81.881,  88.298, Math.toRadians(45));
+    private static final Pose LAST_SHOOT_POSE   = new Pose(87.430,  95.093, Math.toRadians(45));
+
     // ===== state machine =====
     private enum State {
         START_TO_FIRST_SHOOT,
@@ -281,8 +299,53 @@ public class RedCloseTwelve extends LinearOpMode {
         robot.setCycle(targetCycle);
     }
 
+    /** Drive helper (robot-centric x/y + rx) */
+    private void setDrivePowers(double rotY, double rotX, double rx) {
+        rotX *= 1.1; // keep your teleop behavior
+
+        double denom = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1.0);
+
+        double fl = (rotY + rotX + rx) / denom;
+        double bl = (rotY - rotX + rx) / denom;
+        double fr = (rotY - rotX - rx) / denom;
+        double br = (rotY + rotX - rx) / denom;
+
+        robot.fl.setPower(fl);
+        robot.bl.setPower(bl);
+        robot.fr.setPower(fr);
+        robot.br.setPower(br);
+    }
+
+    /** Aimlock override while still calling follower.update() for localization. */
+    private void aimlockDriveToward(Pose targetPose, Double txOrNull) {
+        // Update pose estimate via follower's localizer (we call follower.update() in the loop)
+        Pose cur = follower.getPose();
+        double ex = targetPose.getX() - cur.getX();
+        double ey = targetPose.getY() - cur.getY();
+
+        // Field vector scaled
+        double vxField = Range.clip(AIMLOCK_KP_FIELD * ex, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
+        double vyField = Range.clip(AIMLOCK_KP_FIELD * ey, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
+
+        // Convert field -> robot frame using IMU heading
+        double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+        double rotX = vxField * Math.cos(-botHeading) - vyField * Math.sin(-botHeading);
+        double rotY = vxField * Math.sin(-botHeading) + vyField * Math.cos(-botHeading);
+
+        // Rotation from tag (if visible)
+        double rx = 0.0;
+        if (txOrNull != null) {
+            rx = aimPidFromTx(txOrNull, Robot.AIM_OFFSET_RED);
+            rx = Range.clip(rx, -aimMaxTurn, aimMaxTurn);
+        }
+
+        setDrivePowers(rotY, rotX, rx);
+    }
+
     /** Shoot ONE ball using your pattern + OpenCV slot logic. */
     private void shootOne(int count) {
+        if (robot.pipeline == null) return;
+
         // choose which color we need for this shot
         C920PanelsEOCV.C920Pipeline.SlotState want =
                 (count == (pattern - 21))
@@ -291,6 +354,7 @@ public class RedCloseTwelve extends LinearOpMode {
 
         // read slots
         C920PanelsEOCV.C920Pipeline.SlotState[] colors = robot.pipeline.getSlotStates();
+        if (colors == null || colors.length < 3) return;
 
         // pick i=2->0 like your RedFarSix
         int picked = -1;
@@ -341,39 +405,90 @@ public class RedCloseTwelve extends LinearOpMode {
     }
 
     private void shootThree() {
-        // aim right before the volley
-        aimAtSpeakerTag();
+        // small settle + heading catch-up (~300ms)
+        microAimAtSpeakerTag(0.30);
+
         shootOne(0);
         shootOne(1);
         shootOne(2);
     }
 
-    /** Follow a path; keep intake running; preselect first shot (count=0) while moving to shoot. */
-    private void followToShoot(PathChain path) {
+    /**
+     * Follow a shoot path with Pedro heading UNTIL the speaker tag is seen.
+     * Once tag is seen, we "override" heading by taking over drivetrain (aimlock) while still
+     * calling follower.update() so localization keeps up.
+     *
+     * Intake always runs (half), flywheel always on, and we preselect the FIRST ball while moving.
+     */
+    private void followToShoot(PathChain path, Pose shootPose) {
         follower.followPath(path, true);
 
+        boolean aimLock = false;
+        ElapsedTime aimLockTimer = new ElapsedTime();
+        resetAimPid();
+
         while (opModeIsActive() && follower.isBusy()) {
+
+            // always update pedro (pose estimate)
             follower.update();
 
             // flywheel always on
             robot.outtake('r');
 
-            // half speed intake while traveling to shoots
+            // half intake while traveling to shoots
             robot.intake.setPower(INTAKE_HALF);
 
-            // keep the pattern fresh (optional, but harmless)
+            // keep pattern fresh
             pattern = readPatternFromLimelight(pattern);
 
             // while moving to shoot: pre-select the first shot
             preSelectForShot(0);
 
+            // check tag
+            Double tx = getTxForTag(speakerTagIdRed);
+
+            if (!aimLock && tx != null) {
+                // FIRST time we see the tag: switch into aimlock override
+                aimLock = true;
+                resetAimPid();
+                aimLockTimer.reset();
+            }
+
+            if (aimLock) {
+                // If we lose the tag later, keep translation control but rotation = 0
+                aimlockDriveToward(shootPose, tx);
+
+                // stop condition: close enough OR timeout (so we never stall)
+                Pose cur = follower.getPose();
+                double dist = Math.hypot(shootPose.getX() - cur.getX(), shootPose.getY() - cur.getY());
+
+                if ((aimLockTimer.seconds() >= PREAIM_MIN_TIME && dist <= AIMLOCK_POS_TOL)
+                        || (aimLockTimer.seconds() >= AIMLOCK_TIMEOUT)) {
+                    // let pedro finish "busy" by continuing the loop;
+                    // but we can force stop driving now:
+                    setDrivePowers(0, 0, 0);
+                    break;
+                }
+            }
+
             telemetry.addData("state", state);
             telemetry.addData("pattern", pattern);
+            telemetry.addData("aimLock", aimLock ? "on" : "off");
+            telemetry.addData("tx", tx == null ? "null" : String.format("%.2f", tx));
             telemetry.update();
+        }
+
+        // stop drivetrain at end of leg
+        setDrivePowers(0, 0, 0);
+
+        // If Pedro is still "busy" for a moment, give it a couple updates to settle pose.
+        for (int i = 0; i < 3 && opModeIsActive(); i++) {
+            follower.update();
+            sleep(10);
         }
     }
 
-    /** Follow a path; intake FULL (same “direction/speed” behavior as your RedFarSix). */
+    /** Follow an intake path; intake FULL (same direction/speed behavior as your RedFarSix). */
     private void followIntake(PathChain path) {
         follower.followPath(path, true);
 
@@ -406,7 +521,7 @@ public class RedCloseTwelve extends LinearOpMode {
         limelight.start();
         limelight.pipelineSwitch(apriltagPipeline);
 
-        // ===== INIT: lock pattern (21..23) =====
+        // ===== INIT: read pattern (21..23) =====
         pattern = 21;
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
@@ -431,7 +546,7 @@ public class RedCloseTwelve extends LinearOpMode {
             switch (state) {
 
                 case START_TO_FIRST_SHOOT:
-                    followToShoot(paths.FROMSTARTTOFIRSTSHOOT);
+                    followToShoot(paths.FROMSTARTTOFIRSTSHOOT, FIRST_SHOOT_POSE);
                     state = State.FIRST_SHOOT;
                     break;
 
@@ -446,7 +561,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case PPG_TO_SECOND_SHOOT:
-                    followToShoot(paths.PPGTOSECONDSHOOT);
+                    followToShoot(paths.PPGTOSECONDSHOOT, SECOND_SHOOT_POSE);
                     state = State.SECOND_SHOOT;
                     break;
 
@@ -461,7 +576,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case PGP_TO_THIRD_SHOOT:
-                    followToShoot(paths.PGPTOTHIRDSHOOT);
+                    followToShoot(paths.PGPTOTHIRDSHOOT, THIRD_SHOOT_POSE);
                     state = State.THIRD_SHOOT;
                     break;
 
@@ -476,7 +591,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case GPP_TO_LAST_SHOOT:
-                    followToShoot(paths.GPPTOLASTSHOOT);
+                    followToShoot(paths.GPPTOLASTSHOOT, LAST_SHOOT_POSE);
                     state = State.LAST_SHOOT;
                     break;
 
@@ -508,5 +623,6 @@ public class RedCloseTwelve extends LinearOpMode {
         robot.intake.setPower(0);
         robot.transferDown();
         robot.setCycle(0);
+        setDrivePowers(0, 0, 0);
     }
 }
