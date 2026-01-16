@@ -203,7 +203,7 @@ public class RedCloseTwelve extends LinearOpMode {
             THIRDSHOOTTOGPP = follower.pathBuilder()
                     .addPath(new BezierCurve(
                             new Pose( 81.881,  88.298),
-                            new Pose( 82.079,  26.212),
+                            new Pose( 81.603,  19.06),
                             new Pose(134.358,  37.119)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
