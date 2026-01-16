@@ -71,8 +71,8 @@ public class Robot {
 
     // ===== one-person macro timings (shared) =====
 // Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
-    public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
-    public static double FIRE_FEED_DELAY = 0.25;        // extra delay before transferUp
+    public static double FIRE_CYCLE_SETTLE_TIME = 0.5; // wait after setCycle() before feeding
+    public static double FIRE_FEED_DELAY = 0.4;        // extra delay before transferUp
     public static double FIRE_FEED_TIME = 0.35;         // transferUp duration (raise if arm barely lifts ball)
     public static double FIRE_DOWN_TIME = 0.40;         // time between shots with transferDown
 
@@ -86,7 +86,7 @@ public class Robot {
     public static double AIM_Ks = 0.06;
     public static double AIM_DEADBAND = 0.4;
 
-    public static double AIM_OFFSET_RED = 0.0;
+    public static double AIM_OFFSET_RED = -4.4;
     public static double AIM_OFFSET_BLUE = 0.0;
 
     // set false in an opmode before new Robot(this) if you don't want camera init

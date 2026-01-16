@@ -33,7 +33,7 @@ public class RedFarSix extends LinearOpMode {
             {83,60,0},    // Intake PGP Start
             {114,60,0},   // Intake PGP End
             {96,33,0},    // Intake GPP Start
-            {133,33,0},   // Intake GPP End
+            {136.4,33,0},   // Intake GPP End
             {90,50,62}    // PARK
     };
 
