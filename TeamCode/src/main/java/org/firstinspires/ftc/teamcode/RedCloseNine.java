@@ -159,16 +159,16 @@ public class RedCloseNine extends LinearOpMode {
 
             FROMSTARTTOFIRSTSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(124.927, 120.636),
-                            new Pose( 97.722, 105.854)
+                            new Pose(123.974, 119.682),
+                            new Pose(104.874,  98.464)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(139), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(45))
                     .build();
 
             FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose( 97.722, 105.854),
-                            new Pose(114.026,  81.86),
+                            new Pose(104.874,  98.464),
+                            new Pose(114.026,  81.868),
                             new Pose(129.023,  83.245)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(-59), Math.toRadians(0))
@@ -177,14 +177,14 @@ public class RedCloseNine extends LinearOpMode {
             PPGTOSECONDSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
                             new Pose(129.023,  83.245),
-                            new Pose( 86.285,  93.272)
+                            new Pose( 95.106,  88.980)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
                     .build();
 
             SECONDSHOOTTOPGP = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose( 86.285,  93.272),
+                            new Pose( 95.106,  88.980),
                             new Pose( 85.646,  51.930),
                             new Pose(135.642,  58.311)
                     ))
@@ -195,34 +195,34 @@ public class RedCloseNine extends LinearOpMode {
                     .addPath(new BezierCurve(
                             new Pose(135.642,  58.311),
                             new Pose(116.291,  54.808),
-                            new Pose( 81.881,  88.298)
+                            new Pose( 87.603,  81.384)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
                     .build();
 
             THIRDSHOOTTOGPP = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose( 81.881,  88.298),
-                            new Pose( 82.079,  26.212),
+                            new Pose( 87.603,  81.384),
+                            new Pose( 81.603,  18.583),
                             new Pose(134.358,  37.119)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(6))
                     .build();
 
             GPPTOLASTSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
                             new Pose(134.358,  37.119),
-                            new Pose( 87.430,  95.093)
+                            new Pose( 96.252,  88.894)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(45))
                     .build();
 
             PARK = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(87.430, 95.093),
-                            new Pose(86.384, 104.424)
+                            new Pose( 96.252,  88.894),
+                            new Pose( 99.974,  85.113)
                     ))
-                    .setTangentHeadingInterpolation()
+                    .setConstantHeadingInterpolation(Math.toRadians(45))
                     .build();
         }
     }
@@ -230,10 +230,10 @@ public class RedCloseNine extends LinearOpMode {
     private Paths paths;
 
     // ===== shoot poses (endpoints of the shoot legs) =====
-    private static final Pose FIRST_SHOOT_POSE  = new Pose(97.722, 105.854, Math.toRadians(45));
-    private static final Pose SECOND_SHOOT_POSE = new Pose(86.285,  93.272, Math.toRadians(45));
-    private static final Pose THIRD_SHOOT_POSE  = new Pose(81.881,  88.298, Math.toRadians(45));
-    private static final Pose LAST_SHOOT_POSE   = new Pose(87.430,  95.093, Math.toRadians(45));
+    private static final Pose FIRST_SHOOT_POSE  = new Pose(104.874, 98.464, Math.toRadians(45));
+    private static final Pose SECOND_SHOOT_POSE = new Pose( 95.106, 88.980, Math.toRadians(45));
+    private static final Pose THIRD_SHOOT_POSE  = new Pose( 87.603, 81.384, Math.toRadians(45));
+    private static final Pose LAST_SHOOT_POSE   = new Pose( 96.252, 88.894, Math.toRadians(45));
 
     // ===== state machine =====
     private enum State {
@@ -406,7 +406,7 @@ public class RedCloseNine extends LinearOpMode {
 
     private void shootThree() {
         // small settle + heading catch-up (~300ms)
-        microAimAtSpeakerTag(0.30);
+        microAimAtSpeakerTag(0.1);
 
         shootOne(0);
         shootOne(1);
@@ -515,7 +515,7 @@ public class RedCloseNine extends LinearOpMode {
         paths = new Paths(follower);
 
         // starting pose must match the first point in FROMSTARTTOFIRSTSHOOT
-        follower.setStartingPose(new Pose(124.927, 120.636, Math.toRadians(139)));
+        follower.setStartingPose(new Pose(123.974, 119.682, Math.toRadians(135)));
 
         limelight = robot.getLimelight();
         limelight.start();
