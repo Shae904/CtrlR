@@ -56,7 +56,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     // tag id 21..23 -> pattern
     // shot count == (pattern - 21) is GREEN, else PURPLE
     private int pattern = 21;         // default if no tag seen
-    private int lockedPattern = 21;   // used during Sort3 macro
+    private int lockedPattern = 21;   // used during Sort macro
     private boolean patternLocked = false;
 
     private int readPatternFromLimelight() {
