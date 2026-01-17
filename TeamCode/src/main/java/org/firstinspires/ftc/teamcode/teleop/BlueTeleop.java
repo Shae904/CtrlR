@@ -1,13 +1,14 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.teleop;
 
+import org.firstinspires.ftc.teamcode.Robot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-@TeleOp(name = "Red Teleop")
-public class RedTeleop extends LinearOpMode {
+@TeleOp(name = "Blue Teleop")
+public class BlueTeleop extends LinearOpMode {
     public static Robot robot;
     public enum  RunState{
         CYCLEGREEN,
@@ -32,10 +33,6 @@ public class RedTeleop extends LinearOpMode {
         state = RunState.INTAKE;
         shootTime.reset();
         telemetry.setMsTransmissionInterval(50);
-
-        while(opModeInInit()){
-            robot.setCycle(0);
-        }
 
         waitForStart();
 

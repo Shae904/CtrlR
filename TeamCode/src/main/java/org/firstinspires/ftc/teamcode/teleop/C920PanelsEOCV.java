@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.teleop;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -31,6 +31,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.Collections;
@@ -128,13 +129,9 @@ public class C920PanelsEOCV extends LinearOpMode {
     public static class C920Pipeline extends OpenCvPipeline implements CameraStreamSource {
         private final Mat hsv = new Mat();
         private final Mat mask = new Mat();        // for generic slider mask / mean hsv
-        private final Mat maskGreen = new Mat();   // reused for green masks
-        private final Mat maskPurple = new Mat();  // reused for purple masks
 
         // for triangle masking
         private final Mat slotMask = new Mat();
-        private final Mat slotGreen = new Mat();
-        private final Mat slotPurple = new Mat();
 
         private long frameCount = 0;
         private double lastH = 0, lastS = 0, lastV = 0;
@@ -177,8 +174,21 @@ public class C920PanelsEOCV extends LinearOpMode {
         private final Scalar purpleLower = new Scalar(130, 60, 60);
         private final Scalar purpleUpper = new Scalar(160, 255, 255);
 
-        // min colored pixels to detect ball. tune this.
-        private final int minPixelsForBall = 1350;
+        // avg-color classification thresholds (tune on field)
+        private final double minSatForBall = 60;
+        private final double minValForBall = 60;
+        private final double maxHueDistForBall = 18;
+
+        private final Scalar greenRef = new Scalar(
+                (greenLower.val[0] + greenUpper.val[0]) / 2.0,
+                (greenLower.val[1] + greenUpper.val[1]) / 2.0,
+                (greenLower.val[2] + greenUpper.val[2]) / 2.0
+        );
+        private final Scalar purpleRef = new Scalar(
+                (purpleLower.val[0] + purpleUpper.val[0]) / 2.0,
+                (purpleLower.val[1] + purpleUpper.val[1]) / 2.0,
+                (purpleLower.val[2] + purpleUpper.val[2]) / 2.0
+        );
 
         @Override
         public Mat processFrame(Mat input) {
@@ -198,27 +208,25 @@ public class C920PanelsEOCV extends LinearOpMode {
             lastS = mean.val[1];
             lastV = mean.val[2];
 
-            // full-frame color masks (for triangle)
-            Core.inRange(hsv, greenLower, greenUpper, maskGreen);
-            Core.inRange(hsv, purpleLower, purpleUpper, maskPurple);
 
             // ===== slot 0: triangle =====
             slotMask.create(hsv.rows(), hsv.cols(), CvType.CV_8UC1);
             slotMask.setTo(new Scalar(0));
             Imgproc.fillConvexPoly(slotMask, tri0Mat, new Scalar(255));
 
-            Core.bitwise_and(maskGreen, slotMask, slotGreen);
-            Core.bitwise_and(maskPurple, slotMask, slotPurple);
-
-            int greenCount0 = Core.countNonZero(slotGreen);
-            int purpleCount0 = Core.countNonZero(slotPurple);
-
-            SlotState state0 = SlotState.EMPTY;
-            if (greenCount0 > purpleCount0 && greenCount0 > minPixelsForBall) {
-                state0 = SlotState.GREEN;
-            } else if(purpleCount0 > greenCount0 && purpleCount0 > minPixelsForBall) {
-                state0 = SlotState.PURPLE;
+            Rect triRect = Imgproc.boundingRect(tri0Mat);
+            Rect boundedTri = new Rect(
+                    Math.max(0, triRect.x),
+                    Math.max(0, triRect.y),
+                    Math.min(triRect.width,  Math.max(0, hsv.cols() - triRect.x)),
+                    Math.min(triRect.height, Math.max(0, hsv.rows() - triRect.y))
+            );
+            if (boundedTri.width > 0 && boundedTri.height > 0) {
+                Imgproc.GaussianBlur(hsv.submat(boundedTri), hsv.submat(boundedTri), new Size(5, 5), 0);
             }
+
+            Scalar triMean = Core.mean(hsv, slotMask);
+            SlotState state0 = classifyByMean(triMean);
             slotStates[0] = state0;
 
             // draw triangle
@@ -263,21 +271,10 @@ public class C920PanelsEOCV extends LinearOpMode {
                 }
 
                 Mat slotHSV = hsv.submat(bounded);
+                Imgproc.GaussianBlur(slotHSV, slotHSV, new Size(5, 5), 0);
 
-                // green mask
-                Core.inRange(slotHSV, greenLower, greenUpper, maskGreen);
-                int greenCount = Core.countNonZero(maskGreen);
-
-                // purple mask
-                Core.inRange(slotHSV, purpleLower, purpleUpper, maskPurple);
-                int purpleCount = Core.countNonZero(maskPurple);
-
-                SlotState state = SlotState.EMPTY;
-                if (greenCount > purpleCount && greenCount > minPixelsForBall) {
-                    state = SlotState.GREEN;
-                } else if (purpleCount > greenCount && purpleCount > minPixelsForBall) {
-                    state = SlotState.PURPLE;
-                }
+                Scalar meanHSV = Core.mean(slotHSV);
+                SlotState state = classifyByMean(meanHSV);
 
                 slotStates[i] = state;
 
@@ -337,5 +334,29 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         public SlotState[] getSlotStates() { return slotStates; }
         public SlotState getSlotState(int index) { return slotStates[index]; }
+
+        private SlotState classifyByMean(Scalar meanHsv) {
+            double h = meanHsv.val[0];
+            double s = meanHsv.val[1];
+            double v = meanHsv.val[2];
+
+            if (s < minSatForBall || v < minValForBall) {
+                return SlotState.EMPTY;
+            }
+
+            double dGreen = hueDist(h, greenRef.val[0]);
+            double dPurple = hueDist(h, purpleRef.val[0]);
+
+            if (Math.min(dGreen, dPurple) > maxHueDistForBall) {
+                return SlotState.EMPTY;
+            }
+
+            return (dGreen <= dPurple) ? SlotState.GREEN : SlotState.PURPLE;
+        }
+
+        private double hueDist(double h1, double h2) {
+            double d = Math.abs(h1 - h2);
+            return Math.min(d, 180.0 - d);
+        }
     }
 }

@@ -1,6 +1,10 @@
 // Robot.java
 package org.firstinspires.ftc.teamcode;
 
+import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
+import org.firstinspires.ftc.teamcode.teleop.C920PanelsEOCV;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -48,9 +52,12 @@ public class Robot {
 
     public final IMU imu;
     public final DcMotor fl, fr, bl, br;
-    public final DcMotorEx intake, launch;
+    public final DriveSubsystem drive;
 
-    public final ServoImplEx transfer, cycle;
+    public final IntakeSubsystem intake;
+    public final DcMotorEx launch;
+    private final ServoImplEx transfer, cycle;
+    public final ShooterSubsystem shooter;
 
     public static LinearOpMode opMode;
 
@@ -75,9 +82,6 @@ public class Robot {
     public static double FIRE_FEED_DELAY = 0.4;        // extra delay before transferUp
     public static double FIRE_FEED_TIME = 0.35;         // transferUp duration (raise if arm barely lifts ball)
     public static double FIRE_DOWN_TIME = 0.40;         // time between shots with transferDown
-
-    // distance to goal (updated when tag is seen)
-    private double x = 128;
 
     // ===== aim pid (tx -> rx) tunables (for sharing / panels, not used inside Robot yet) =====
     public static double AIM_Kp = 0.016;
@@ -105,21 +109,7 @@ public class Robot {
         br = hardwareMap.dcMotor.get("br");
         fl = hardwareMap.dcMotor.get("fl");
         fr = hardwareMap.dcMotor.get("fr");
-
-        fl.setDirection(Direction.REVERSE);
-        fr.setDirection(Direction.FORWARD);
-        bl.setDirection(Direction.REVERSE);
-        br.setDirection(Direction.FORWARD);
-
-        fl.setMode(RunMode.RUN_WITHOUT_ENCODER);
-        fr.setMode(RunMode.RUN_WITHOUT_ENCODER);
-        bl.setMode(RunMode.RUN_WITHOUT_ENCODER);
-        br.setMode(RunMode.RUN_WITHOUT_ENCODER);
-
-        fl.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-        fr.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-        bl.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-        br.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+        drive = new DriveSubsystem(fl, fr, bl, br);
 
         // imu
         imu = hardwareMap.get(IMU.class, "imu");
@@ -136,19 +126,15 @@ public class Robot {
         transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");
 
         // intake
-        intake = hardwareMap.get(DcMotorEx.class, "intake");
-        intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
-        intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
-        // outtake
-        launch = hardwareMap.get(DcMotorEx.class, "launch");
-        launch.setMode(RunMode.RUN_WITHOUT_ENCODER);
-        launch.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
-        launch.setDirection(Direction.REVERSE);
+        intake = new IntakeSubsystem(hardwareMap.get(DcMotorEx.class, "intake"));
 
         // limelight
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.setPollRateHz(100);
+
+        // outtake
+        launch = hardwareMap.get(DcMotorEx.class, "launch");
+        shooter = new ShooterSubsystem(launch, transfer, cycle, limelight);
 
         // vision (optional)
         if (INIT_VISION) {
@@ -215,67 +201,32 @@ public class Robot {
     // mechanisms
     public void setCycle(int pos) {
         cpos = pos;
-        cycle.setPosition(cyclePos[pos]);
+        shooter.setCyclePosition(cyclePos[pos]);
+    }
+
+    public void setCyclePosition(double position) {
+        shooter.setCyclePosition(position);
     }
 
     public void setLaunch(double power) {
-        launch.setPower(power);
+        shooter.setLaunchPower(power);
     }
 
     public void transferUp() {
-        transfer.setPosition(transferOne);
+        shooter.setTransferPosition(transferOne);
     }
 
     public void transferDown() {
-        transfer.setPosition(transferTwo);
+        shooter.setTransferPosition(transferTwo);
     }
 
     // motor test helper (optional)
     public void setMotor(int motor, double power) {
-        if (motor == 0) fl.setPower(power);
-        else if (motor == 1) fr.setPower(power);
-        else if (motor == 2) bl.setPower(power);
-        else if (motor == 3) br.setPower(power);
+        drive.setMotor(motor, power);
     }
 
     // flywheel velocity control (same math you had)
     public double outtake(char color) {
-        double Kv = 0.000379;
-        double Kp = 0.001;
-
-        double goalHeight = 30;
-        double limelightHeight = 10;
-
-        double angle = -1;
-        int targetId = (color == 'r') ? 24 : 20;
-
-        LLResult result = limelight.getLatestResult();
-        if (result != null && result.isValid()) {
-            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-            if (fiducials != null) {
-                for (LLResultTypes.FiducialResult fiducial : fiducials) {
-                    if (fiducial.getFiducialId() == targetId) {
-                        double y = fiducial.getTargetYDegrees();
-                        angle = Math.toRadians(y + 21); // 21 = limelight mount tilt
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (angle != -1) {
-            x = (goalHeight - limelightHeight) / Math.tan(angle) + 6; // +6 = limelight->shooter offset
-        }
-
-        double targetVelo = launchMult * x * Math.pow(1.16825863336 * x - 29, -0.5);
-        double ff = Kv * targetVelo;
-
-        double currentVelo = launch.getVelocity();
-        double p = Kp * (targetVelo - currentVelo);
-
-        double power = Range.clip(ff + p, -0.2, 1.0);
-        launch.setPower(power);
-
-        return targetVelo;
+        return shooter.outtake(color, launchMult);
     }
 }

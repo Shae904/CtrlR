@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.teleop;
 
+import org.firstinspires.ftc.teamcode.Robot;
 import com.bylazar.configurables.PanelsConfigurables;
 import com.bylazar.configurables.annotations.Configurable;
 
@@ -16,8 +17,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import java.util.List;
 
 @Configurable
-@TeleOp(name = "One Person Alt Red Teleop")
-public class OnePersonAltRedTeleop extends LinearOpMode {
+@TeleOp(name = "One Person Alt Blue Teleop")
+public class OnePersonAltBlueTeleop extends LinearOpMode {
 
     public static Robot robot;
 
@@ -31,11 +32,11 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     public RunState state;
 
     // ===== aim pid (shared in Robot.java) =====
-    // Uses Robot.AIM_Kp/AIM_Ki/AIM_Kd/AIM_Ks/AIM_DEADBAND and Robot.AIM_OFFSET_RED
+    // Uses Robot.AIM_Kp/AIM_Ki/AIM_Kd/AIM_Ks/AIM_DEADBAND and Robot.AIM_OFFSET_BLUE
     public static double maxTurn = 1.0;
 
     public static int apriltagPipeline = 0;
-    public static int targetTagId = 24;
+    public static int targetTagId = 20;
 
     public static boolean fieldCentric = false;
     public static double rotStickScale = 1.0;
@@ -199,7 +200,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                     resetPid();
                     rx = rxManual;
                 } else {
-                    rx = pidFromTx(tx, Robot.AIM_OFFSET_RED);
+                    rx = pidFromTx(tx, Robot.AIM_OFFSET_BLUE);
                 }
             } else {
                 resetPid();
@@ -234,7 +235,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             robot.br.setPower(br);
 
             // flywheel always on
-            double target = robot.outtake('r');
+            double target = robot.outtake('b');
 
             // ===== macro triggers (edge) =====
             boolean dpadLeft = gamepad1.dpad_left;

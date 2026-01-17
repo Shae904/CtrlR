@@ -1,5 +1,7 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.autonomous;
 
+import org.firstinspires.ftc.teamcode.Robot;
+import org.firstinspires.ftc.teamcode.teleop.C920PanelsEOCV;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
@@ -10,6 +12,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
@@ -41,6 +44,15 @@ public class RedFarNine extends LinearOpMode {
     public Limelight3A limelight;
     private int shooting;
     public C920PanelsEOCV.C920Pipeline.SlotState[] colors;
+
+    // ===== auto aim (red tag 24) =====
+    public static int speakerTagIdRed = 24;
+    public static double aimMaxTurn = 0.6;
+    public static double aimTimeoutSec = 1.2;
+
+    private double aimInteg = 0.0;
+    private double aimLastErr = 0.0;
+    private long aimLastNanos = 0L;
 
     public enum PathState{PRELOAD,PGP,GPP,PARK,STOP}
 
@@ -164,6 +176,96 @@ public class RedFarNine extends LinearOpMode {
         shoot(1);
         shoot(2);
     }
+
+    private void resetAimPid() {
+        aimInteg = 0.0;
+        aimLastErr = 0.0;
+        aimLastNanos = 0L;
+    }
+
+    private Double getTxForTag(int id) {
+        LLResult result = limelight.getLatestResult();
+        if (result == null || !result.isValid()) return null;
+
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+        if (fiducials == null) return null;
+
+        for (LLResultTypes.FiducialResult f : fiducials) {
+            if (f.getFiducialId() == id) {
+                return f.getTargetXDegrees();
+            }
+        }
+        return null;
+    }
+
+    private double aimPidFromTx(double txDeg, double offsetDeg) {
+        long now = System.nanoTime();
+        double dt = (aimLastNanos == 0L) ? 0.02 : (now - aimLastNanos) / 1e9;
+        aimLastNanos = now;
+        if (dt < 0.001) dt = 0.02;
+
+        double err = txDeg - offsetDeg;
+
+        if (Math.abs(err) < Robot.AIM_DEADBAND) {
+            aimInteg = 0.0;
+            aimLastErr = err;
+            return 0.0;
+        }
+
+        aimInteg += err * dt;
+        double deriv = (err - aimLastErr) / dt;
+        aimLastErr = err;
+
+        double out = Robot.AIM_Kp * err + Robot.AIM_Ki * aimInteg + Robot.AIM_Kd * deriv + Robot.AIM_Ks * Math.signum(err);
+        return Range.clip(out, -1.0, 1.0);
+    }
+
+    /**
+     * Rotate in place until tx ~ 0 (within deadband) or timeout.
+     * If tag not visible, it will just bail immediately (so auton doesn't stall).
+     */
+    private void aimAtSpeakerTag() {
+        resetAimPid();
+
+        ElapsedTime t = new ElapsedTime();
+        int stableCount = 0;
+        final int neededStable = 5;
+
+        while (opModeIsActive() && t.seconds() < aimTimeoutSec) {
+            robot.outtake('r');
+
+            Double tx = getTxForTag(speakerTagIdRed);
+            if (tx == null) {
+                break;
+            }
+
+            double err = tx - Robot.AIM_OFFSET_RED;
+            if (Math.abs(err) < Robot.AIM_DEADBAND) {
+                stableCount++;
+            } else {
+                stableCount = 0;
+            }
+
+            if (stableCount >= neededStable) {
+                break;
+            }
+
+            double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
+            turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
+
+            robot.fl.setPower( turn);
+            robot.bl.setPower( turn);
+            robot.fr.setPower(-turn);
+            robot.br.setPower(-turn);
+
+            sleep(20);
+        }
+
+        robot.fl.setPower(0);
+        robot.bl.setPower(0);
+        robot.fr.setPower(0);
+        robot.br.setPower(0);
+    }
     public void autonomousPathUpdate(){
         if(opModeTimer.seconds() > 29.5){
             pathState = PathState.STOP;
@@ -172,6 +274,7 @@ public class RedFarNine extends LinearOpMode {
             case PRELOAD:
                 follower.followPath(shootPreload, true);
                 while(opModeIsActive() && follower.isBusy()){update();}
+                aimAtSpeakerTag();
                 shootThree();
                 pathState = PathState.GPP;
                 break;
@@ -179,6 +282,7 @@ public class RedFarNine extends LinearOpMode {
                 intakeThree(preIntakeGPP,intakeGPP);
                 follower.followPath(shootGPP);
                 while(opModeIsActive() && follower.isBusy()){update();}
+                aimAtSpeakerTag();
                 shootThree();
                 pathState = PathState.PGP;
                 break;
@@ -186,8 +290,9 @@ public class RedFarNine extends LinearOpMode {
                 intakeThree(preIntakePGP,intakePGP);
                 follower.followPath(shootPGP);
                 while(opModeIsActive() && follower.isBusy()){update();}
+                aimAtSpeakerTag();
                 shootThree();
-                pathState = PathState.PGP;
+                pathState = PathState.PARK;
                 break;
             case PARK:
                 follower.followPath(park);
@@ -206,11 +311,15 @@ public class RedFarNine extends LinearOpMode {
         robot.outtake('r');
         robot.intake.setPower(-0.9);
         LLResult result = limelight.getLatestResult();
-        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-        for (LLResultTypes.FiducialResult fiducial : fiducials) {
-            int id = fiducial.getFiducialId(); // The ID number of the fiducial
-            if (id >= 21 && id <= 23) {
-                pattern = id;
+        if (result != null && result.isValid()) {
+            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+            if (fiducials != null) {
+                for (LLResultTypes.FiducialResult fiducial : fiducials) {
+                    int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                    if (id >= 21 && id <= 23) {
+                        pattern = id;
+                    }
+                }
             }
         }
         telemetry.addData("Path State", pathState);
@@ -233,17 +342,29 @@ public class RedFarNine extends LinearOpMode {
             opModeTimer.reset();
             // Limelight setup
             LLResult result = limelight.getLatestResult();
-            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-            for (LLResultTypes.FiducialResult fiducial : fiducials) {
-                int id = fiducial.getFiducialId(); // The ID number of the fiducial
-                if (id >= 21 && id <= 23) {
-                    pattern = id;
+            if (result != null && result.isValid()) {
+                List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+                if (fiducials != null) {
+                    for (LLResultTypes.FiducialResult fiducial : fiducials) {
+                        int id = fiducial.getFiducialId(); // The ID number of the fiducial
+                        if (id >= 21 && id <= 23) {
+                            pattern = id;
+                        }
+                    }
                 }
             }
         }
         waitForStart();
         while(this.opModeIsActive()){
-            colors = robot.pipeline.getSlotStates();
+            if (robot.pipeline != null) {
+                colors = robot.pipeline.getSlotStates();
+            } else {
+                colors = new C920PanelsEOCV.C920Pipeline.SlotState[] {
+                        C920PanelsEOCV.C920Pipeline.SlotState.EMPTY,
+                        C920PanelsEOCV.C920Pipeline.SlotState.EMPTY,
+                        C920PanelsEOCV.C920Pipeline.SlotState.EMPTY
+                };
+            }
             autonomousPathUpdate();
         }
     }

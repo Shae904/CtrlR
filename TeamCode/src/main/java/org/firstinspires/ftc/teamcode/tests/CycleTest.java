@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.tests;
 
+import org.firstinspires.ftc.teamcode.Robot;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -20,7 +21,7 @@ public class CycleTest extends LinearOpMode{
         // LOOP
         while (opModeIsActive()) {
             if(gamepad1.a){
-                robot.cycle.setPosition(cyclePos);
+                robot.setCyclePosition(cyclePos);
             }
             if(gamepad1.x){
                 robot.setCycle(0);

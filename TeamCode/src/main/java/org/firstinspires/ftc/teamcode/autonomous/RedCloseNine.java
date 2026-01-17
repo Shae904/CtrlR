@@ -1,5 +1,7 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.autonomous;
 
+import org.firstinspires.ftc.teamcode.Robot;
+import org.firstinspires.ftc.teamcode.teleop.C920PanelsEOCV;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
@@ -20,8 +22,8 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.List;
 
-@Autonomous(name = "Red Close 12")
-public class RedCloseTwelve extends LinearOpMode {
+@Autonomous(name = "Red Close 9")
+public class RedCloseNine extends LinearOpMode {
 
     // ===== robot + pedro =====
     public static Robot robot;
@@ -31,11 +33,12 @@ public class RedCloseTwelve extends LinearOpMode {
     // ===== timing / behavior =====
     public static double INTAKE_FULL = -1;   // same direction as your RedFarSix update()
     public static double INTAKE_HALF = -0.5; // conserve voltage while traveling to shoot
+    public static double INTAKE_DRIVE_MAX_POWER = 0.7; // drivetrain cap while intaking balls (intake legs only)
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
-    public static double CYCLE_SETTLE = 0.12; // let cycler servo move a bit
+    public static double CYCLE_SETTLE = 0.18; // let cycler servo move a bit
     public static double FEED_DELAY   = 0.25; // wait before transferUp (your teleop macro style)
-    public static double FEED_TIME    = 0.28; // HOLD transferUp (increase if it "barely swings up")
+    public static double FEED_TIME    = 0.35; // HOLD transferUp (increase if it "barely swings up")
     public static double DOWN_TIME    = 0.40; // time between shots (transfer down)
 
     // ===== pattern =====
@@ -160,69 +163,69 @@ public class RedCloseTwelve extends LinearOpMode {
             FROMSTARTTOFIRSTSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
                             new Pose(123.974, 119.682),
-                            new Pose(102.728,  97.510)
+                            new Pose(116.874,  98.464)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(48))
                     .build();
 
             FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose(102.728,  97.510),
-                            new Pose(116.649,  87.113),
-                            new Pose(129.046,  73.470)
+                            new Pose(116.874,  98.464),
+                            new Pose(114.026,  81.868),
+                            new Pose(141.023,  83.245)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(-59), Math.toRadians(0))
                     .build();
 
             PPGTOSECONDSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(129.046,  73.470),
-                            new Pose( 94.391,  88.980)
+                            new Pose(141.023,  83.245),
+                            new Pose(107.106,  88.980)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
                     .build();
 
             SECONDSHOOTTOPGP = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose( 94.391,  88.980),
+                            new Pose(107.106,  88.980),
                             new Pose( 85.646,  51.930),
-                            new Pose(135.642,  58.311)
+                            new Pose(147.642,  58.311)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                    .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(0))
                     .build();
 
             PGPTOTHIRDSHOOT = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose(135.642,  58.311),
+                            new Pose(147.642,  58.311),
                             new Pose(116.291,  54.808),
-                            new Pose( 86.649,  82.099)
+                            new Pose( 99.603,  81.384)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
                     .build();
 
             THIRDSHOOTTOGPP = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose( 86.649,  82.099),
-                            new Pose( 81.603,  19.060),
-                            new Pose(134.358,  37.119)
+                            new Pose( 99.603,  81.384),
+                            new Pose( 81.603,  18.583),
+                            new Pose(146.358,  37.119)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                    .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(6))
                     .build();
 
             GPPTOLASTSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(134.358,  37.119),
-                            new Pose( 95.298,  88.417)
+                            new Pose(146.358,  37.119),
+                            new Pose(108.252,  88.894)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                    .setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(48))
                     .build();
 
             PARK = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose( 95.298,  88.417),
-                            new Pose( 99.020,  84.636)
+                            new Pose(108.252,  88.894),
+                            new Pose(111.974,  85.113)
                     ))
-                    .setConstantHeadingInterpolation(Math.toRadians(45))
+                    .setConstantHeadingInterpolation(Math.toRadians(48))
                     .build();
         }
     }
@@ -230,10 +233,10 @@ public class RedCloseTwelve extends LinearOpMode {
     private Paths paths;
 
     // ===== shoot poses (endpoints of the shoot legs) =====
-    private static final Pose FIRST_SHOOT_POSE  = new Pose(102.728, 97.510, Math.toRadians(45));
-    private static final Pose SECOND_SHOOT_POSE = new Pose( 94.391, 88.980, Math.toRadians(45));
-    private static final Pose THIRD_SHOOT_POSE  = new Pose( 86.649, 82.099, Math.toRadians(45));
-    private static final Pose LAST_SHOOT_POSE   = new Pose( 95.298, 88.417, Math.toRadians(45));
+    private static final Pose FIRST_SHOOT_POSE  = new Pose(116.874, 98.464, Math.toRadians(45));
+    private static final Pose SECOND_SHOOT_POSE = new Pose(107.106, 88.980, Math.toRadians(45));
+    private static final Pose THIRD_SHOOT_POSE  = new Pose( 99.603, 81.384, Math.toRadians(45));
+    private static final Pose LAST_SHOOT_POSE   = new Pose(108.252, 88.894, Math.toRadians(45));
 
     // ===== state machine =====
     private enum State {
@@ -316,6 +319,15 @@ public class RedCloseTwelve extends LinearOpMode {
         robot.br.setPower(br);
     }
 
+    /** Scale current drivetrain motor powers (used to cap speed on intake legs). */
+    private void scaleDrivePowers(double scale) {
+        scale = Range.clip(scale, 0.0, 1.0);
+        robot.fl.setPower(robot.fl.getPower() * scale);
+        robot.bl.setPower(robot.bl.getPower() * scale);
+        robot.fr.setPower(robot.fr.getPower() * scale);
+        robot.br.setPower(robot.br.getPower() * scale);
+    }
+
     /** Aimlock override while still calling follower.update() for localization. */
     private void aimlockDriveToward(Pose targetPose, Double txOrNull) {
         // Update pose estimate via follower's localizer (we call follower.update() in the loop)
@@ -344,39 +356,48 @@ public class RedCloseTwelve extends LinearOpMode {
 
     /** Shoot ONE ball using your pattern + OpenCV slot logic. */
     private void shootOne(int count) {
-        if (robot.pipeline == null) return;
-
         // choose which color we need for this shot
         C920PanelsEOCV.C920Pipeline.SlotState want =
                 (count == (pattern - 21))
                         ? C920PanelsEOCV.C920Pipeline.SlotState.GREEN
                         : C920PanelsEOCV.C920Pipeline.SlotState.PURPLE;
 
-        // read slots
-        C920PanelsEOCV.C920Pipeline.SlotState[] colors = robot.pipeline.getSlotStates();
-        if (colors == null || colors.length < 3) return;
+        // read slots (can be null early / if camera hiccups)
+        C920PanelsEOCV.C920Pipeline.SlotState[] colors = null;
+        if (robot.pipeline != null) {
+            colors = robot.pipeline.getSlotStates();
+        }
 
         // pick i=2->0 like your RedFarSix
         int picked = -1;
-        for (int i = 2; i >= 0; i--) {
-            if (colors[i] == want) { picked = i; break; }
+        if (colors != null && colors.length >= 3) {
+            for (int i = 2; i >= 0; i--) {
+                if (colors[i] == want) { picked = i; break; }
+            }
         }
 
-        // if we can't find it, just fall back to "whatever" (don’t deadlock)
+        // If we can't find the wanted color (or colors are null), don't stall.
+        // Force a deterministic fallback so the cycler still moves.
         int targetCycle;
-        if (picked == -1) targetCycle = robot.cpos;
-        else targetCycle = (robot.cpos + picked + 1) % 3;
+        if (picked == -1) {
+            targetCycle = (robot.cpos + 1) % 3;
+        } else {
+            targetCycle = (robot.cpos + picked + 1) % 3;
+        }
 
         robot.setCycle(targetCycle);
 
         ElapsedTime t = new ElapsedTime();
+
+        // Let the cycler physically reach the position before we try to feed
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
             robot.outtake('r');
+            // keep intake on, but not max load
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
         }
 
-        // wait before feeding
+        // wait before feeding (keep transfer down)
         t.reset();
         while (opModeIsActive() && t.seconds() < FEED_DELAY) {
             robot.outtake('r');
@@ -385,12 +406,13 @@ public class RedCloseTwelve extends LinearOpMode {
             sleep(10);
         }
 
-        // transfer up (feed)
+        // transfer up (feed) - keep asserting UP during the window for consistency
         t.reset();
-        robot.transferUp();
         while (opModeIsActive() && t.seconds() < FEED_TIME) {
             robot.outtake('r');
-            robot.intake.setPower(INTAKE_HALF);
+            // reduce motor load during the actual feed so the servo has full authority
+            robot.intake.setPower(0);
+            robot.transferUp();
             sleep(10);
         }
 
@@ -406,7 +428,7 @@ public class RedCloseTwelve extends LinearOpMode {
 
     private void shootThree() {
         // small settle + heading catch-up (~300ms)
-        microAimAtSpeakerTag(0.10);
+        microAimAtSpeakerTag(0.1);
 
         shootOne(0);
         shootOne(1);
@@ -494,6 +516,8 @@ public class RedCloseTwelve extends LinearOpMode {
 
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
+            // cap drivetrain speed while intaking balls
+            scaleDrivePowers(INTAKE_DRIVE_MAX_POWER);
             robot.outtake('r');
 
             // FULL intake on intake legs
@@ -535,6 +559,7 @@ public class RedCloseTwelve extends LinearOpMode {
         }
 
         waitForStart();
+        robot.intake.setPower(0);
         opTimer.reset();
 
         state = State.START_TO_FIRST_SHOOT;
