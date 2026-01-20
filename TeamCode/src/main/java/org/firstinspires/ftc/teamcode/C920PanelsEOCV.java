@@ -101,6 +101,11 @@ public class C920PanelsEOCV extends LinearOpMode {
     // ===== Auto label from HSV + per-ROI manual override =====
     public static boolean autoLabelFromHSV = true;
 
+    // ===== Lock-in labeling (snapshot HSV-based slot states into manual labels) =====
+    // When locked, captures are named using the locked manual labels instead of live HSV.
+    // START = lock, BACK = unlock
+    public static boolean labelsLocked = false;
+
     // 0=triangle, 1=bottom rect, 2=top rect (matches slotStates indexing)
     public static int manualSelectedRoi = 0;
 
@@ -159,6 +164,8 @@ public class C920PanelsEOCV extends LinearOpMode {
         boolean prevB = false;
         boolean prevX = false;
         boolean prevRB = false;
+        boolean prevStart = false;
+        boolean prevBack = false;
 
         waitForStart();
 
@@ -207,11 +214,51 @@ public class C920PanelsEOCV extends LinearOpMode {
             }
             prevRB = rb;
 
+            // ===== Lock current HSV states into manual labels (START) =====
+            // Use this when the chamber is in neutral lighting and HSV looks correct.
+            // This snapshots the *HSV* slot states, enables manual override on all slots,
+            // and forces future capture naming to use the locked manual labels.
+            boolean start = gamepad1.start;
+            if (start && !prevStart) {
+                C920Pipeline.SlotState[] hsvStates = pipeline.getHsvSlotStates();
+                if (hsvStates == null || hsvStates.length < 3) {
+                    hsvStates = pipeline.getSlotStates(); // fallback
+                }
+
+                labelsLocked = true;
+                autoLabelFromHSV = false; // make behavior explicit while locked
+
+                // Turn on manual override for all slots
+                manualOverrideSlot0 = true;
+                manualOverrideSlot1 = true;
+                manualOverrideSlot2 = true;
+
+                // Lock labels to the current HSV states
+                manualLabelSlot0 = slotStateToLabelId(hsvStates[0]);
+                manualLabelSlot1 = slotStateToLabelId(hsvStates[1]);
+                manualLabelSlot2 = slotStateToLabelId(hsvStates[2]);
+            }
+            prevStart = start;
+
+            // ===== Unlock labels (BACK) =====
+            // Returns to live HSV auto-labeling for capture naming.
+            boolean back = gamepad1.back;
+            if (back && !prevBack) {
+                labelsLocked = false;
+                autoLabelFromHSV = true;
+
+                manualOverrideSlot0 = false;
+                manualOverrideSlot1 = false;
+                manualOverrideSlot2 = false;
+            }
+            prevBack = back;
+
             // ===== Telemetry =====
             telemetryM.debug("Capture", datasetCaptureEnabled ? "ARMED" : "OFF");
             telemetryM.debug("Saved", pipeline.getSavedCount());
             telemetryM.debug("Mode", useTfliteClassifier ? "TFLITE" : "HSV");
             telemetryM.debug("Auto-label", autoLabelFromHSV ? "HSV" : "MANUAL ONLY");
+            telemetryM.debug("Label lock", labelsLocked ? "LOCKED" : "UNLOCKED");
 
             telemetryM.debug("Manual ROI", manualSelectedRoi);
             telemetryM.debug("Override S0", manualOverrideSlot0 + " label=" + labelNameFromId(manualLabelSlot0));
@@ -251,6 +298,12 @@ public class C920PanelsEOCV extends LinearOpMode {
         if (id == 1) return "GREEN";
         if (id == 2) return "PURPLE";
         return "EMPTY";
+    }
+
+    private static int slotStateToLabelId(C920Pipeline.SlotState state) {
+        if (state == C920Pipeline.SlotState.GREEN) return 1;
+        if (state == C920Pipeline.SlotState.PURPLE) return 2;
+        return 0; // EMPTY
     }
 
     // =====================================================================
@@ -315,6 +368,11 @@ public class C920PanelsEOCV extends LinearOpMode {
                 SlotState.EMPTY, SlotState.EMPTY, SlotState.EMPTY
         };
 
+        // Last HSV-only classification per slot (before TFLite / final-state logic)
+        private final SlotState[] hsvSlotStates = new SlotState[] {
+                SlotState.EMPTY, SlotState.EMPTY, SlotState.EMPTY
+        };
+
         public C920Pipeline(Context context, AssetManager assets) {
             this.context = context;
             this.assets = assets;
@@ -323,6 +381,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         public int getSavedCount() { return savedCount; }
         public long getFrameCount() { return frameCount; }
         public SlotState[] getSlotStates() { return slotStates; }
+        public SlotState[] getHsvSlotStates() { return hsvSlotStates; }
 
         // Called from opmode when RB is pressed (and capture mode is armed)
         public void requestOneShotCapture() {
@@ -565,6 +624,7 @@ public class C920PanelsEOCV extends LinearOpMode {
                 else hsvState0 = SlotState.EMPTY;
             }
 
+            hsvSlotStates[0] = hsvState0;
             Rect triBounds = Imgproc.boundingRect(tri0Mat);
 
             SlotState finalState0;
@@ -602,6 +662,7 @@ public class C920PanelsEOCV extends LinearOpMode {
                 Mat slotHSV = hsv.submat(bounded);
                 hsvState = hsvClassifySubmat(slotHSV);
                 slotHSV.release();
+                hsvSlotStates[i] = hsvState;
 
                 SlotState finalState;
                 if (useTfliteClassifier) {
