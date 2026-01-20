@@ -360,7 +360,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         // index: 0 triangle, 1 bottom rect, 2 top rect
         private final Rect[] slotRects = new Rect[] {
                 null,
-                new Rect(420, 420, 220, 60),  // slot1
+                new Rect(0, 160, 88, 140),  // slot1
                 new Rect(330, 70, 230, 70)    // slot2
         };
 

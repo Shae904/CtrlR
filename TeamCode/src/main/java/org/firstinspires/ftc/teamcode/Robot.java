@@ -168,7 +168,8 @@ public class Robot {
         webcam = OpenCvCameraFactory.getInstance().createWebcam(
                 hardwareMap.get(WebcamName.class, "c920"), cameraMonitorViewId);
 
-        pipeline = new C920PanelsEOCV.C920Pipeline();
+        pipeline = new C920PanelsEOCV.C920Pipeline(hardwareMap.appContext,
+                hardwareMap.appContext.getAssets());
         webcam.setPipeline(pipeline);
 
         webcam.setViewportRenderer(OpenCvWebcam.ViewportRenderer.GPU_ACCELERATED);
