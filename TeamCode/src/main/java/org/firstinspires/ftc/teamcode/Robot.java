@@ -37,11 +37,13 @@ motors
 3 - bl
 expansion hub
 motors
-2 - launch
+1 - launch
 3 - intake
 servos
 1 - transfer
-4 - cycle
+2 - cycle1
+3 - cycle2
+4 - cycle(will be deprecated soon)
 */
 @Configurable
 public class Robot {
@@ -50,7 +52,7 @@ public class Robot {
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake, launch;
 
-    public final ServoImplEx transfer, cycle;
+    public final ServoImplEx transfer, cycle, cycle1, cycle2;
 
     public static LinearOpMode opMode;
 
@@ -80,11 +82,11 @@ public class Robot {
     private double x = 128;
 
     // ===== aim pid (tx -> rx) tunables (for sharing / panels, not used inside Robot yet) =====
-    public static double AIM_Kp = 0.016;
+    public static double AIM_Kp = 0.015;
     public static double AIM_Ki = 0.0;
     public static double AIM_Kd = 0.0017;
-    public static double AIM_Ks = 0.06;
-    public static double AIM_DEADBAND = 0.4;
+    public static double AIM_Ks = 0.13;
+    public static double AIM_DEADBAND = 0.7;
 
     public static double AIM_OFFSET_RED = -4.4;
     public static double AIM_OFFSET_BLUE = 0.0;
@@ -140,6 +142,9 @@ public class Robot {
         intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
+        cycle1 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle1");
+        cycle2 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle2");
+
         // outtake
         launch = hardwareMap.get(DcMotorEx.class, "launch");
         launch.setMode(RunMode.RUN_WITHOUT_ENCODER);
@@ -168,8 +173,7 @@ public class Robot {
         webcam = OpenCvCameraFactory.getInstance().createWebcam(
                 hardwareMap.get(WebcamName.class, "c920"), cameraMonitorViewId);
 
-        pipeline = new C920PanelsEOCV.C920Pipeline(hardwareMap.appContext,
-                hardwareMap.appContext.getAssets());
+        pipeline = new C920PanelsEOCV.C920Pipeline(hardwareMap.appContext);
         webcam.setPipeline(pipeline);
 
         webcam.setViewportRenderer(OpenCvWebcam.ViewportRenderer.GPU_ACCELERATED);

@@ -73,12 +73,12 @@ public class AimPidTunerTeleop extends LinearOpMode {
 
         while (opModeIsActive()) {
             // keep robot constants in sync (optional, but nice for copying into real teleop)
-            Robot.AIM_Kp = kp;
-            Robot.AIM_Ki = ki;
-            Robot.AIM_Kd = kd;
-            Robot.AIM_Ks = ks;
-            Robot.AIM_DEADBAND = deadband;
-            Robot.AIM_OFFSET_RED = aimOffsetDeg;
+            kp = Robot.AIM_Kp;
+            ki = Robot.AIM_Ki;
+            kd = Robot.AIM_Kd;
+            ks = Robot.AIM_Ks;
+            deadband = Robot.AIM_DEADBAND;
+            aimOffsetDeg = Robot.AIM_OFFSET_RED;
 
             // only switch pipelines when value changes
             if (apriltagPipeline != lastPipeline) {
@@ -112,21 +112,12 @@ public class AimPidTunerTeleop extends LinearOpMode {
             // field centric like your red teleop
             double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
 
-            double rotX = x;
-            double rotY = y;
+            double denom = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
 
-            if (fieldCentric) {
-                rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
-                rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
-                rotX *= 1.1;
-            }
-
-            double denom = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1.0);
-
-            double fl = (rotY + rotX + rx) / denom;
-            double bl = (rotY - rotX + rx) / denom;
-            double fr = (rotY - rotX - rx) / denom;
-            double br = (rotY + rotX - rx) / denom;
+            double fl = (y + x + rx) / denom;
+            double bl = (y - x + rx) / denom;
+            double fr = (y - x - rx) / denom;
+            double br = (y + x - rx) / denom;
 
             robot.fl.setPower(fl);
             robot.bl.setPower(bl);
