@@ -298,6 +298,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
             switch (state) {
                 case INTAKE:
+                    robot.cpos = 0;
                     robot.setCycle(0);
                     robot.intake.setPower(Math.abs(intakePow) > 0.05 ? intakePow : 0);
                     break;

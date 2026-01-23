@@ -59,7 +59,7 @@ public class Robot {
     public static double transferOne = 0.0;
     public static double transferTwo = 0.38;
 
-    public static double[] cyclePos = {0.055, 0.343, 0.615};
+    public static double[] cyclePos = {0.037, 0.226, 0.413, 0.6, 0.78};
     public int cpos = 0;
 
     public final Limelight3A limelight;
@@ -219,8 +219,21 @@ public class Robot {
 
     // mechanisms
     public void setCycle(int pos) {
-        cpos = pos;
-        cycle.setPosition(cyclePos[pos]);
+        if(cpos == 2 && pos == 1){
+            cpos = 1;
+        }
+        else if(cpos >= 2 && pos != 2){
+            cpos = pos + 3;
+        }
+        else {
+            cpos = pos;
+        }
+        // failsafe to prevent indexing errors
+        if(cpos >= 5){
+            cpos = 4;
+        }
+        cycle1.setPosition(cyclePos[cpos]);
+        cycle2.setPosition(cyclePos[cpos]);
     }
 
     public void setLaunch(double power) {
