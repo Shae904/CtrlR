@@ -64,7 +64,7 @@ public class C920PanelsEOCV extends LinearOpMode {
     public static int upperV = 255;
 
     // TFLite controls (separate; does NOT change HSV API)
-    public static boolean tfliteEnabled = true;
+    public static boolean tfliteEnabled = false;
     public static int tfliteEveryNFrames = 2;
     public static float tfliteMinConf = 0.55f;
 

@@ -43,7 +43,6 @@ servos
 1 - transfer
 2 - cycle1
 3 - cycle2
-4 - cycle(will be deprecated soon)
 */
 @Configurable
 public class Robot {
@@ -64,7 +63,7 @@ public class Robot {
 
     public final Limelight3A limelight;
 
-    public static double cycleTime = 0.9;     // todo tune
+    public static double cycleTime = 0.35;     // todo tune
     public static double outTime = 0.5;       // todo tune
 
     public static double launchMult = 143.4;
@@ -73,10 +72,9 @@ public class Robot {
 
     // ===== one-person macro timings (shared) =====
 // Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
-    public static double FIRE_CYCLE_SETTLE_TIME = 0.5; // wait after setCycle() before feeding
-    public static double FIRE_FEED_DELAY = 0.4;        // extra delay before transferUp
-    public static double FIRE_FEED_TIME = 0.35;         // transferUp duration (raise if arm barely lifts ball)
-    public static double FIRE_DOWN_TIME = 0.40;         // time between shots with transferDown
+    public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
+    public static double FIRE_FEED_TIME = 0.55;         // transferUp duration (raise if arm barely lifts ball)
+    public static double FIRE_DOWN_TIME = 0.5;         // time between shots with transferDown
 
     // distance to goal (updated when tag is seen)
     private double x = 128;
@@ -219,6 +217,7 @@ public class Robot {
 
     // mechanisms
     public void setCycle(int pos) {
+        /*
         if(cpos == 2 && pos == 1){
             cpos = 1;
         }
@@ -231,7 +230,8 @@ public class Robot {
         // failsafe to prevent indexing errors
         if(cpos >= 5){
             cpos = 4;
-        }
+        }*/
+        cpos = pos;
         cycle1.setPosition(cyclePos[cpos]);
         cycle2.setPosition(cyclePos[cpos]);
     }

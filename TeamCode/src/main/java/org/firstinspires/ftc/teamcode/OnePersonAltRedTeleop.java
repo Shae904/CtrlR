@@ -80,7 +80,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     // ===== Fire test macro (DPAD LEFT): fixed order 2 -> 0 -> 1 =====
     private enum FireTestState {
         IDLE,
-        MOVE, WAIT_AT_TARGET, WAIT_FEED_DELAY, FEED, DOWN,
+        MOVE, WAIT_AT_TARGET, FEED, DOWN,
         NEXT, DONE
     }
 
@@ -111,7 +111,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     // ===== Sort3 macro (DPAD DOWN): uses OpenCV slot colors + pattern logic =====
     private enum Sort3State {
         IDLE,
-        PICK_AND_MOVE, WAIT_AT_TARGET, WAIT_FEED_DELAY, FEED, DOWN,
+        PICK_AND_MOVE, WAIT_AT_TARGET, FEED, DOWN,
         NEXT, DONE
     }
 
@@ -366,14 +366,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
                 // No analog gating: just wait for the cycler servo to settle
                 if (ftTimer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
                     ftTimer.reset();
-                    ftState = FireTestState.WAIT_FEED_DELAY;
-                }
-                break;
-            }
-
-            case WAIT_FEED_DELAY: {
-                if (ftTimer.seconds() >= Robot.FIRE_FEED_DELAY) {
-                    ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
                 break;
@@ -455,14 +447,6 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
             case WAIT_AT_TARGET: {
                 // No analog gating: just wait for the cycler servo to settle
                 if (s3Timer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
-                    s3Timer.reset();
-                    s3State = Sort3State.WAIT_FEED_DELAY;
-                }
-                break;
-            }
-
-            case WAIT_FEED_DELAY: {
-                if (s3Timer.seconds() >= Robot.FIRE_FEED_DELAY) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
