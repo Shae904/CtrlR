@@ -33,10 +33,9 @@ public class RedCloseTwelve extends LinearOpMode {
     public static double INTAKE_HALF = -0.5; // conserve voltage while traveling to shoot
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
-    public static double CYCLE_SETTLE = 0.12; // let cycler servo move a bit
-    public static double FEED_DELAY   = 0.25; // wait before transferUp (your teleop macro style)
-    public static double FEED_TIME    = 0.28; // HOLD transferUp (increase if it "barely swings up")
-    public static double DOWN_TIME    = 0.40; // time between shots (transfer down)
+    public static double CYCLE_SETTLE = Robot.FIRE_CYCLE_SETTLE_TIME; // let cycler servo move a bit
+    public static double FEED_TIME    = Robot.FIRE_FEED_TIME; // HOLD transferUp (increase if it "barely swings up")
+    public static double DOWN_TIME    = Robot.FIRE_DOWN_TIME; // time between shots (transfer down)
 
     // ===== pattern =====
     // tag 21..23 -> pattern; green index = (pattern - 21) (0..2)
@@ -373,15 +372,6 @@ public class RedCloseTwelve extends LinearOpMode {
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
-            sleep(10);
-        }
-
-        // wait before feeding
-        t.reset();
-        while (opModeIsActive() && t.seconds() < FEED_DELAY) {
-            robot.outtake('r');
-            robot.intake.setPower(INTAKE_HALF);
-            robot.transferDown();
             sleep(10);
         }
 

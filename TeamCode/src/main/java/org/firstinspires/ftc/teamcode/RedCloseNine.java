@@ -34,10 +34,9 @@ public class RedCloseNine extends LinearOpMode {
     public static double INTAKE_DRIVE_MAX_POWER = 0.7; // drivetrain cap while intaking balls (intake legs only)
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
-    public static double CYCLE_SETTLE = 0.18; // let cycler servo move a bit
-    public static double FEED_DELAY   = 0.25; // wait before transferUp (your teleop macro style)
-    public static double FEED_TIME    = 0.35; // HOLD transferUp (increase if it "barely swings up")
-    public static double DOWN_TIME    = 0.40; // time between shots (transfer down)
+    public static double CYCLE_SETTLE = Robot.FIRE_CYCLE_SETTLE_TIME; // let cycler servo move a bit
+    public static double FEED_TIME    = Robot.FIRE_FEED_TIME; // HOLD transferUp (increase if it "barely swings up")
+    public static double DOWN_TIME    = Robot.FIRE_DOWN_TIME; // time between shots (transfer down)
 
     // ===== pattern =====
     // tag 21..23 -> pattern; green index = (pattern - 21) (0..2)
@@ -144,52 +143,56 @@ public class RedCloseNine extends LinearOpMode {
         robot.fr.setPower(0);
         robot.br.setPower(0);
     }
-
     // ===== paths (your coords) =====
     public static class Paths {
         public PathChain FROMSTARTTOFIRSTSHOOT;
         public PathChain FIRSTSHOOTTOINTAKEPPG;
         public PathChain PPGTOSECONDSHOOT;
-        public PathChain SECONDSHOOTTOPGP;
+        public PathChain SECONDSHOOTTOINTAKEPGP;
         public PathChain PGPTOTHIRDSHOOT;
-        public PathChain THIRDSHOOTTOGPP;
+        public PathChain THIRDSHOOTTOINTAKEGPP;
         public PathChain GPPTOLASTSHOOT;
         public PathChain PARK;
+
+        public Pose START = new Pose(123.974,119.682);
+        public double START_ANGLE;
+        public Pose SHOOT = new Pose(96,98);
+        public double SHOOT_ANGLE = 43;
 
         public Paths(Follower follower) {
 
             FROMSTARTTOFIRSTSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(123.974, 119.682),
-                            new Pose(116.874,  98.464)
+                            START,
+                            SHOOT
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(START_ANGLE), Math.toRadians(SHOOT_ANGLE))
                     .build();
 
             FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose(116.874,  98.464),
-                            new Pose(114.026,  81.868),
-                            new Pose(141.023,  83.245)
+                            SHOOT,
+                            new Pose(100.507,  83.697),
+                            new Pose(129.135,  83.697)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(-59), Math.toRadians(0))
+                    .setTangentHeadingInterpolation()
                     .build();
 
             PPGTOSECONDSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(141.023,  83.245),
-                            new Pose(107.106,  88.980)
+                            new Pose(129.135,  83.697),
+                            SHOOT
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(SHOOT_ANGLE))
                     .build();
 
-            SECONDSHOOTTOPGP = follower.pathBuilder()
+            SECONDSHOOTTOINTAKEPGP = follower.pathBuilder()
                     .addPath(new BezierCurve(
                             new Pose(107.106,  88.980),
                             new Pose( 85.646,  51.930),
                             new Pose(147.642,  58.311)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(0))
+                    .setTangentHeadingInterpolation()
                     .build();
 
             PGPTOTHIRDSHOOT = follower.pathBuilder()
@@ -198,16 +201,16 @@ public class RedCloseNine extends LinearOpMode {
                             new Pose(116.291,  54.808),
                             new Pose( 99.603,  81.384)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(SHOOT_ANGLE))
                     .build();
 
-            THIRDSHOOTTOGPP = follower.pathBuilder()
+            THIRDSHOOTTOINTAKEGPP = follower.pathBuilder()
                     .addPath(new BezierCurve(
                             new Pose( 99.603,  81.384),
                             new Pose( 81.603,  18.583),
                             new Pose(146.358,  37.119)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(6))
+                    .setLinearHeadingInterpolation(Math.toRadians(SHOOT_ANGLE), Math.toRadians(6))
                     .build();
 
             GPPTOLASTSHOOT = follower.pathBuilder()
@@ -215,7 +218,7 @@ public class RedCloseNine extends LinearOpMode {
                             new Pose(146.358,  37.119),
                             new Pose(108.252,  88.894)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(SHOOT_ANGLE))
                     .build();
 
             PARK = follower.pathBuilder()
@@ -394,16 +397,6 @@ public class RedCloseNine extends LinearOpMode {
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
         }
-
-        // wait before feeding (keep transfer down)
-        t.reset();
-        while (opModeIsActive() && t.seconds() < FEED_DELAY) {
-            robot.outtake('r');
-            robot.intake.setPower(INTAKE_HALF);
-            robot.transferDown();
-            sleep(10);
-        }
-
         // transfer up (feed) - keep asserting UP during the window for consistency
         t.reset();
         while (opModeIsActive() && t.seconds() < FEED_TIME) {
@@ -594,7 +587,7 @@ public class RedCloseNine extends LinearOpMode {
                     break;
 
                 case SECOND_SHOOT_TO_PGP:
-                    followIntake(paths.SECONDSHOOTTOPGP);
+                    followIntake(paths.SECONDSHOOTTOINTAKEPGP);
                     state = State.PGP_TO_THIRD_SHOOT;
                     break;
 
@@ -609,7 +602,7 @@ public class RedCloseNine extends LinearOpMode {
                     break;
 
                 case THIRD_SHOOT_TO_GPP:
-                    followIntake(paths.THIRDSHOOTTOGPP);
+                    followIntake(paths.THIRDSHOOTTOINTAKEGPP);
                     state = State.GPP_TO_LAST_SHOOT;
                     break;
 

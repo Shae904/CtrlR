@@ -88,7 +88,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
     private final ElapsedTime ftTimer = new ElapsedTime();
     private boolean ftActive = false;
 
-    private final int[] ftOrder = new int[] {2, 0, 1};
+    private final int[] ftOrder = new int[] {0,1,2};
     private int ftIndex = 0;
     private int currentTargetCycle = 0;
 
