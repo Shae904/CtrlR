@@ -31,6 +31,7 @@ public class CycleTest extends LinearOpMode{
             if(gamepad1.b){
                 robot.setCycle(2);
             }
+            telemetry.addData("Voltage of Analog Output:",robot.servoPos.getVoltage());
         }
     }
 }

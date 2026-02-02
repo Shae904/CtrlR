@@ -8,6 +8,7 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -52,6 +53,8 @@ public class Robot {
     public final DcMotorEx intake, launch;
 
     public final ServoImplEx transfer, cycle, cycle1, cycle2;
+
+    public final AnalogInput servoPos;
 
     public static LinearOpMode opMode;
 
@@ -142,6 +145,7 @@ public class Robot {
 
         cycle1 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle1");
         cycle2 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle2");
+        servoPos = hardwareMap.get(AnalogInput.class,"servoPos");
 
         // outtake
         launch = hardwareMap.get(DcMotorEx.class, "launch");

@@ -16,8 +16,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import java.util.List;
 
 @Configurable
-@TeleOp(name = "One Person Alt Red Teleop")
-public class OnePersonAltRedTeleop extends LinearOpMode {
+@TeleOp(name = "One Person Red Teleop")
+public class OnePersonRedTeleop extends LinearOpMode {
 
     public static Robot robot;
 
@@ -364,7 +364,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
             case WAIT_AT_TARGET: {
                 // No analog gating: just wait for the cycler servo to settle
-                if (ftTimer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
+                if (ftTimer.seconds() > 0.02 && Math.abs(robot.servoPos.getVoltage() - Robot.cyclePos[robot.cpos] * 3.3) <= 0.1) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -446,7 +446,7 @@ public class OnePersonAltRedTeleop extends LinearOpMode {
 
             case WAIT_AT_TARGET: {
                 // No analog gating: just wait for the cycler servo to settle
-                if (s3Timer.seconds() >= Robot.FIRE_CYCLE_SETTLE_TIME) {
+                if (s3Timer.seconds() > 0.02 && Math.abs(robot.servoPos.getVoltage() - Robot.cyclePos[robot.cpos] * 3.3) <= 0.1) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
