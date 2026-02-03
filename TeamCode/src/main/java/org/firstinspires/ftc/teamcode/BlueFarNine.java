@@ -202,6 +202,7 @@ public class BlueFarNine extends LinearOpMode {
         }
     }
     public void update(){
+        robot.updateCycle();
         follower.update();
         robot.outtake('r');
         robot.intake.setPower(-0.9);
@@ -230,6 +231,7 @@ public class BlueFarNine extends LinearOpMode {
         pattern = 21;
         while(this.opModeInInit()) {
             robot.setCycle(0);
+            robot.updateCycle();
             opModeTimer.reset();
             // Limelight setup
             LLResult result = limelight.getLatestResult();

@@ -84,6 +84,7 @@ public class AltRedTeleop extends LinearOpMode {
         resetPid();
 
         while (opModeIsActive()) {
+            robot.updateCycle();
 
             // switch pipeline only when changed
             if (apriltagPipeline != lastPipeline) {

@@ -53,7 +53,6 @@ public class Robot {
     public final DcMotorEx intake, launch;
 
     // CRServos for cycle mech
-    public final CRServo cycle;   // “tuned” servo (used by CycleTest / PID tuner)
     public final CRServo cycle1;  // first drive servo
     public final CRServo cycle2;  // second drive servo
 
@@ -61,13 +60,13 @@ public class Robot {
 
     public final AnalogInput servoPos;   // analog feedback for cycle
 
+    public final SpinSorter spinSorter;
+
     public static LinearOpMode opMode;
 
     public static double transferOne = 0.0;
     public static double transferTwo = 0.38;
 
-    // These are being used as POWER values for cycle1/cycle2 (not true positions)
-    public static double[] cyclePos = {0.037, 0.226, 0.413, 0.6, 0.78};
     public int cpos = 0;
 
     public final Limelight3A limelight;
@@ -142,7 +141,6 @@ public class Robot {
 
         // === servos & analog feedback ===
         // IMPORTANT: make sure config has these as Continuous Rotation Servos.
-        cycle  = hardwareMap.get(CRServo.class, "cycle");
         cycle1 = hardwareMap.get(CRServo.class, "cycle1");
         cycle2 = hardwareMap.get(CRServo.class, "cycle2");
 
@@ -154,7 +152,15 @@ public class Robot {
 
         transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");
 
-        servoPos = hardwareMap.get(AnalogInput.class, "servoPos");
+        AnalogInput analog;
+        try {
+            analog = hardwareMap.get(AnalogInput.class, "servoPos");
+        } catch (Exception ignored) {
+            analog = hardwareMap.get(AnalogInput.class, "servoAnalog");
+        }
+        servoPos = analog;
+
+        spinSorter = new SpinSorter(cycle1, cycle2, servoPos);
 
         // intake
         intake = hardwareMap.get(DcMotorEx.class, "intake");
@@ -239,7 +245,7 @@ public class Robot {
      * Direct manual power for the main cycle servo (used by CycleTest / PID tuner).
      */
     public void setCycleManualPower(double power) {
-        cycle.setPower(power);
+        spinSorter.setPower(power);
     }
 
     /**
@@ -249,17 +255,19 @@ public class Robot {
         return servoPos.getVoltage();
     }
 
-    /**
-     * Discrete “slot” helper for your teleops.
-     * NOTE: These values are being used as POWER for cycle1/2,
-     * not true positional control.
-     */
+    /** Call every loop to update the spin sorter closed-loop control. */
+    public void updateCycle() {
+        spinSorter.update();
+        cpos = spinSorter.getNearestPresetIndex();
+    }
+
+    /** Command a given preset index in {@link SpinSorter#presetPositions}. */
     public void setCycle(int pos) {
-        // Simple index mapping (your newer behavior)
-        cpos = Range.clip(pos, 0, cyclePos.length - 1);
-        double p = cyclePos[cpos];
-        cycle1.setPower(p);
-        cycle2.setPower(p);
+        spinSorter.setTargetPresetIndex(pos);
+    }
+
+    public boolean cycleAtTarget() {
+        return spinSorter.atTarget();
     }
 
     public void setLaunch(double power) {

@@ -36,6 +36,7 @@ public class BlueTeleop extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
+            robot.updateCycle();
             if (gamepad1.left_bumper) {
                 robot.imu.resetYaw();
             }

@@ -314,6 +314,7 @@ public class RedFarSix extends LinearOpMode {
     }
 
     public void update(){
+        robot.updateCycle();
         follower.update();
         robot.outtake('r');
         robot.intake.setPower(-0.9);
@@ -354,6 +355,7 @@ public class RedFarSix extends LinearOpMode {
 
         while(this.opModeInInit()) {
             robot.setCycle(0);
+            robot.updateCycle();
             opModeTimer.reset();
 
             // pattern detect (21-23) during init

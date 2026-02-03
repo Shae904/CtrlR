@@ -35,11 +35,13 @@ public class RedTeleop extends LinearOpMode {
 
         while(opModeInInit()){
             robot.setCycle(0);
+            robot.updateCycle();
         }
 
         waitForStart();
 
         while (opModeIsActive()) {
+            robot.updateCycle();
             if (gamepad1.left_bumper) {
                 robot.imu.resetYaw();
             }

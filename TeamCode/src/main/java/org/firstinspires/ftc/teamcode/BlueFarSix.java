@@ -195,6 +195,7 @@ public class  BlueFarSix extends LinearOpMode {
         }
     }
     public void update(){
+        robot.updateCycle();
         follower.update();
         robot.outtake('b');
         robot.intake.setPower(-0.9);
@@ -223,6 +224,7 @@ public class  BlueFarSix extends LinearOpMode {
         pattern = 21;
         while(this.opModeInInit()) {
             robot.setCycle(0);
+            robot.updateCycle();
             opModeTimer.reset();
             // Limelight setup
             LLResult result = limelight.getLatestResult();

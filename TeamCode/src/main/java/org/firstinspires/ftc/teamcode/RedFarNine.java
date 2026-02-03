@@ -418,6 +418,7 @@ public class RedFarNine extends LinearOpMode {
 
         // Let the cycler physically reach the position before we try to feed
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
+            robot.updateCycle();
             robot.outtake('r');
             // keep intake on, but not max load
             robot.intake.setPower(INTAKE_HALF);
@@ -426,6 +427,7 @@ public class RedFarNine extends LinearOpMode {
         // transfer up (feed) - keep asserting UP during the window for consistency
         t.reset();
         while (opModeIsActive() && t.seconds() < FEED_TIME) {
+            robot.updateCycle();
             robot.outtake('r');
             // reduce motor load during the actual feed so the servo has full authority
             robot.intake.setPower(0);
@@ -437,6 +439,7 @@ public class RedFarNine extends LinearOpMode {
         robot.transferDown();
         t.reset();
         while (opModeIsActive() && t.seconds() < DOWN_TIME) {
+            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
@@ -470,6 +473,7 @@ public class RedFarNine extends LinearOpMode {
 
             // always update pedro (pose estimate)
             follower.update();
+            robot.updateCycle();
 
             // flywheel always on
             robot.outtake('r');
@@ -523,6 +527,7 @@ public class RedFarNine extends LinearOpMode {
         // If Pedro is still "busy" for a moment, give it a couple updates to settle pose.
         for (int i = 0; i < 3 && opModeIsActive(); i++) {
             follower.update();
+            robot.updateCycle();
             sleep(10);
         }
     }
@@ -535,6 +540,7 @@ public class RedFarNine extends LinearOpMode {
 
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
+            robot.updateCycle();
             // cap drivetrain speed while intaking balls
             scaleDrivePowers(INTAKE_DRIVE_MAX_POWER);
             robot.outtake('r');
@@ -569,6 +575,7 @@ public class RedFarNine extends LinearOpMode {
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
             robot.setCycle(0);
+            robot.updateCycle();
             robot.transferDown();
             robot.intake.setPower(0);
 
@@ -649,6 +656,7 @@ public class RedFarNine extends LinearOpMode {
                     follower.followPath(paths.PARK, true);
                     while (opModeIsActive() && follower.isBusy()) {
                         follower.update();
+                        robot.updateCycle();
                         robot.outtake('r');
                         robot.intake.setPower(INTAKE_HALF);
                         telemetry.addData("state", state);

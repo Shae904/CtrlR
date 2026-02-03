@@ -109,6 +109,15 @@ public class OnePersonRedTeleop extends LinearOpMode {
     }
 
     // ===== Sort3 macro (DPAD DOWN): uses OpenCV slot colors + pattern logic =====
+    // Step mapping from camera slot index -> how many preset positions to move.
+    // Tune these if "left/right" feels swapped.
+    public static int STEP_FOR_CAM_SLOT0 = -1;
+    public static int STEP_FOR_CAM_SLOT1 = 1;
+    public static int STEP_FOR_CAM_SLOT2 = 0;
+
+    // Safety so we never wait forever if the analog is miscalibrated / controller disabled
+    public static double SORT_MOVE_TIMEOUT = 1.25;
+
     private enum Sort3State {
         IDLE,
         PICK_AND_MOVE, WAIT_AT_TARGET, FEED, DOWN,
@@ -121,11 +130,26 @@ public class OnePersonRedTeleop extends LinearOpMode {
 
     private int s3Shot = 0;
     private int s3TargetCycle = 0;
+    private int s3CycleIndex = 0;
+    private C920PanelsEOCV.C920Pipeline.SlotState[] s3SavedSlots = null;
 
     private void startSort3() {
         // lock pattern ONCE like auton
         lockedPattern = readPatternFromLimelight();
         patternLocked = true;
+
+        // Snapshot the camera states ONCE for the whole macro (your request)
+        if (robot.pipeline == null) {
+            stopSort3();
+            return;
+        }
+        C920PanelsEOCV.C920Pipeline.SlotState[] colors = robot.pipeline.getSlotStates();
+        if (colors == null || colors.length < 3) {
+            stopSort3();
+            return;
+        }
+        s3SavedSlots = colors.clone();
+        s3CycleIndex = robot.cpos;
 
         s3Active = true;
         s3State = Sort3State.PICK_AND_MOVE;
@@ -138,6 +162,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
         s3State = Sort3State.IDLE;
         robot.transferDown();
         patternLocked = false;
+        s3SavedSlots = null;
     }
 
     @Override
@@ -151,12 +176,17 @@ public class OnePersonRedTeleop extends LinearOpMode {
         state = RunState.INTAKE;
         telemetry.setMsTransmissionInterval(50);
 
+        final int initCycleIndex = SpinSorter.midPresetIndex();
+
         // init loop: show pattern like auton does
         while (opModeInInit()) {
             pattern = readPatternFromLimelight();
-            robot.setCycle(0);
+            robot.setCycle(initCycleIndex);
+            robot.updateCycle();
             telemetry.addData("pattern(tag 21-23)", pattern);
             telemetry.addData("meaning", pattern == 21 ? "GPP" : (pattern == 22 ? "PGP" : "PPG"));
+            telemetry.addData("cycle idx", "%d / %d", robot.cpos, Math.max(0, SpinSorter.presetPositions.length - 1));
+            telemetry.addData("cycle target", "%d", robot.spinSorter.getTargetIndex());
             telemetry.update();
         }
 
@@ -166,6 +196,9 @@ public class OnePersonRedTeleop extends LinearOpMode {
         resetPid();
 
         while (opModeIsActive()) {
+
+            // Always keep the spin sorter control loop running
+            robot.updateCycle();
 
             // pipeline switch only if changed
             if (apriltagPipeline != lastPipeline) {
@@ -298,8 +331,8 @@ public class OnePersonRedTeleop extends LinearOpMode {
 
             switch (state) {
                 case INTAKE:
-                    robot.cpos = 0;
-                    robot.setCycle(0);
+                    // IMPORTANT: You said the mechanism can intake at ANY wheel angle.
+                    // So INTAKE no longer forces a "rotate to intake alignment" move.
                     robot.intake.setPower(Math.abs(intakePow) > 0.05 ? intakePow : 0);
                     break;
 
@@ -337,17 +370,25 @@ public class OnePersonRedTeleop extends LinearOpMode {
             sleep(20);
         }
 
-        // cleanup
-        try {
-            if (robot.webcam != null) {
-                robot.webcam.stopStreaming();
-                robot.webcam.closeCameraDevice();
-            }
-        } catch (Exception ignored) { }
+        // cleanup (async so we don't get "stuck in stop()")
+        try { robot.transferDown(); } catch (Exception ignored) { }
+        try { robot.intake.setPower(0); } catch (Exception ignored) { }
+        try { robot.launch.setPower(0); } catch (Exception ignored) { }
 
-        try {
-            robot.limelight.close();
-        } catch (Exception ignored) { }
+        new Thread(() -> {
+            try {
+                if (robot.webcam != null) {
+                    robot.webcam.stopStreaming();
+                    robot.webcam.closeCameraDevice();
+                }
+            } catch (Exception ignored) { }
+
+            try {
+                if (robot.limelight != null) {
+                    robot.limelight.close();
+                }
+            } catch (Exception ignored) { }
+        }).start();
     }
 
     // ===== FireTest: 2 -> 0 -> 1 using time-based settle =====
@@ -363,8 +404,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                // No analog gating: just wait for the cycler servo to settle
-                if (ftTimer.seconds() > 0.02 && Math.abs(robot.servoPos.getVoltage() - Robot.cyclePos[robot.cpos] * 3.3) <= 0.1) {
+                if (ftTimer.seconds() > 0.02 && robot.cycleAtTarget()) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -409,8 +449,10 @@ public class OnePersonRedTeleop extends LinearOpMode {
     private void runSort3Step() {
         switch (s3State) {
             case PICK_AND_MOVE: {
-                // read current slots
-                C920PanelsEOCV.C920Pipeline.SlotState[] colors = robot.pipeline.getSlotStates();
+                if (s3SavedSlots == null || s3SavedSlots.length < 3) {
+                    stopSort3();
+                    return;
+                }
 
                 // EXACTLY like auton:
                 // green only when count == (pattern - 21)
@@ -419,10 +461,11 @@ public class OnePersonRedTeleop extends LinearOpMode {
                                 ? C920PanelsEOCV.C920Pipeline.SlotState.GREEN
                                 : C920PanelsEOCV.C920Pipeline.SlotState.PURPLE;
 
-                // pick i=2->0 (same style as your auton shoot())
+                // Pick i=2->0. Slot 2 is treated as "current shooter", and slots 0/1 map
+                // to "move left" / "move right" by preset index.
                 int picked = -1;
                 for (int i = 2; i >= 0; i--) {
-                    if (colors[i] == want) {
+                    if (s3SavedSlots[i] == want) {
                         picked = i;
                         break;
                     }
@@ -434,10 +477,36 @@ public class OnePersonRedTeleop extends LinearOpMode {
                     return;
                 }
 
-                // IMPORTANT: (cpos + i + 1) % 3
-                s3TargetCycle = (robot.cpos + picked + 1) % 3;
+                int step;
+                if (picked == 0) step = STEP_FOR_CAM_SLOT0;
+                else if (picked == 1) step = STEP_FOR_CAM_SLOT1;
+                else step = STEP_FOR_CAM_SLOT2;
+
+                int nextIndex = robot.spinSorter.stepPresetIndex(s3CycleIndex, step);
+                s3CycleIndex = nextIndex;
+                s3TargetCycle = nextIndex;
                 robot.setCycle(s3TargetCycle);
                 robot.transferDown();
+
+                // Update our saved slot model for the movement so it stays consistent.
+                // Right step: slot1 -> slot2, slot0 -> slot1, slot2 -> slot0.
+                // Left step:  slot0 -> slot2, slot2 -> slot1, slot1 -> slot0.
+                if (s3SavedSlots.length >= 3 && step != 0) {
+                    int steps = Math.abs(step);
+                    for (int s = 0; s < steps; s++) {
+                        if (step > 0) {
+                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[2];
+                            s3SavedSlots[2] = s3SavedSlots[1];
+                            s3SavedSlots[1] = s3SavedSlots[0];
+                            s3SavedSlots[0] = tmp;
+                        } else {
+                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[0];
+                            s3SavedSlots[0] = s3SavedSlots[1];
+                            s3SavedSlots[1] = s3SavedSlots[2];
+                            s3SavedSlots[2] = tmp;
+                        }
+                    }
+                }
 
                 s3Timer.reset();
                 s3State = Sort3State.WAIT_AT_TARGET;
@@ -445,8 +514,11 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                // No analog gating: just wait for the cycler servo to settle
-                if (s3Timer.seconds() > 0.02 && Math.abs(robot.servoPos.getVoltage() - Robot.cyclePos[robot.cpos] * 3.3) <= 0.1) {
+                if (s3Timer.seconds() > SORT_MOVE_TIMEOUT) {
+                    stopSort3();
+                    return;
+                }
+                if (s3Timer.seconds() > 0.02 && robot.cycleAtTarget()) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
@@ -457,6 +529,10 @@ public class OnePersonRedTeleop extends LinearOpMode {
                 robot.transferUp();
                 if (s3Timer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
+                    // Mark the fired ball as gone in our saved model
+                    if (s3SavedSlots != null && s3SavedSlots.length >= 3) {
+                        s3SavedSlots[2] = C920PanelsEOCV.C920Pipeline.SlotState.EMPTY;
+                    }
                     s3Timer.reset();
                     s3State = Sort3State.DOWN;
                 }

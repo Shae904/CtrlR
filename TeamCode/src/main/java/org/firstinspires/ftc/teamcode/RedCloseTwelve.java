@@ -370,6 +370,7 @@ public class RedCloseTwelve extends LinearOpMode {
 
         ElapsedTime t = new ElapsedTime();
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
+            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
@@ -379,6 +380,7 @@ public class RedCloseTwelve extends LinearOpMode {
         t.reset();
         robot.transferUp();
         while (opModeIsActive() && t.seconds() < FEED_TIME) {
+            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
@@ -388,6 +390,7 @@ public class RedCloseTwelve extends LinearOpMode {
         robot.transferDown();
         t.reset();
         while (opModeIsActive() && t.seconds() < DOWN_TIME) {
+            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
             sleep(10);
@@ -421,6 +424,7 @@ public class RedCloseTwelve extends LinearOpMode {
 
             // always update pedro (pose estimate)
             follower.update();
+            robot.updateCycle();
 
             // flywheel always on
             robot.outtake('r');
@@ -474,6 +478,7 @@ public class RedCloseTwelve extends LinearOpMode {
         // If Pedro is still "busy" for a moment, give it a couple updates to settle pose.
         for (int i = 0; i < 3 && opModeIsActive(); i++) {
             follower.update();
+            robot.updateCycle();
             sleep(10);
         }
     }
@@ -484,6 +489,7 @@ public class RedCloseTwelve extends LinearOpMode {
 
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
+            robot.updateCycle();
             robot.outtake('r');
 
             // FULL intake on intake legs
@@ -516,6 +522,7 @@ public class RedCloseTwelve extends LinearOpMode {
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
             robot.setCycle(0);
+            robot.updateCycle();
             robot.transferDown();
             robot.intake.setPower(0);
 
@@ -594,6 +601,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     follower.followPath(paths.PARK, true);
                     while (opModeIsActive() && follower.isBusy()) {
                         follower.update();
+                        robot.updateCycle();
                         robot.outtake('r');
                         robot.intake.setPower(INTAKE_HALF);
                         telemetry.addData("state", state);

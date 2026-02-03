@@ -16,43 +16,8 @@ public class CyclePIDFTuner extends LinearOpMode {
     // Dashboard-tunable fields
     // =========================
 
-    // Analog calibration
-    public static double minV = 0.10;
-    public static double maxV = 3.20;
-    public static boolean isWraparound = true;
-
-    // Target positions (normalized 0..1)
-    public static double[] positions = {
-            0.096,
-            0.260,
-            0.430,
-            0.595,
-            0.764,
-            0.936
-    };
+    // Target selection
     public static int targetIndex = 0;
-
-    // Enable controller output
-    public static boolean enableControl = true;
-
-    // Motion profile limits
-    public static double maxVel = 1.5;      // units/sec
-    public static double maxAccel = 4.0;    // units/sec^2
-
-    // PID gains
-    public static double kP = 4.0;
-    public static double kI = 0.0;
-    public static double kD = 0.15;
-
-    // Feedforward
-    public static double kS = 0.0;  // static friction
-    public static double kV = 0.0;  // velocity FF
-
-    // Output limits
-    public static double maxPower = 1.0;
-    public static double outputDeadband = 0.0;
-    public static double positionDeadband = 0.01;
-    public static double iClamp = 0.25;
 
     // =========================
     // Internal state
@@ -70,13 +35,18 @@ public class CyclePIDFTuner extends LinearOpMode {
         // ----- Hardware -----
         CRServo cycle1 = hardwareMap.get(CRServo.class, "cycle1");
         CRServo cycle2 = hardwareMap.get(CRServo.class, "cycle2");
-        AnalogInput servoPos = hardwareMap.get(AnalogInput.class, "servoAnalog");
+        AnalogInput servoPos;
+        try {
+            servoPos = hardwareMap.get(AnalogInput.class, "servoAnalog");
+        } catch (Exception ignored) {
+            servoPos = hardwareMap.get(AnalogInput.class, "servoPos");
+        }
 
         ElapsedTime timer = new ElapsedTime();
 
         // Initialize setpoint to current position
         double voltage = servoPos.getVoltage();
-        double pos = normalize(voltage);
+        double pos = normalizeVoltage(voltage);
         spPos = pos;
         spVel = 0.0;
 
@@ -95,7 +65,8 @@ public class CyclePIDFTuner extends LinearOpMode {
 
             // ----- Read position -----
             voltage = servoPos.getVoltage();
-            pos = normalize(voltage);
+            pos = normalizeVoltage(voltage);
+            int nearestIdx = getNearestPresetIndex(pos);
 
             // ----- Gamepad helpers -----
             boolean a = gamepad1.a;
@@ -103,21 +74,21 @@ public class CyclePIDFTuner extends LinearOpMode {
             boolean x = gamepad1.x;
             boolean y = gamepad1.y;
 
-            if (a && !lastA) targetIndex = (targetIndex + 1) % positions.length;
-            if (b && !lastB) targetIndex = (targetIndex - 1 + positions.length) % positions.length;
+            if (a && !lastA) targetIndex = (targetIndex + 1) % Math.max(1, SpinSorter.presetPositions.length);
+            if (b && !lastB) targetIndex = (targetIndex - 1 + Math.max(1, SpinSorter.presetPositions.length)) % Math.max(1, SpinSorter.presetPositions.length);
 
             // Capture calibration
-            if (x && !lastX) minV = voltage;
-            if (y && !lastY) maxV = voltage;
+            if (x && !lastX) SpinSorter.minV = voltage;
+            if (y && !lastY) SpinSorter.maxV = voltage;
 
             lastA = a; lastB = b; lastX = x; lastY = y;
 
             // ----- Target -----
-            int idx = Range.clip(targetIndex, 0, positions.length - 1);
-            double target = Range.clip(positions[idx], 0.0, 1.0);
+            int idx = Range.clip(targetIndex, 0, Math.max(0, SpinSorter.presetPositions.length - 1));
+            double target = getPresetPos(idx);
 
             // ----- Motion profile -----
-            if (enableControl) {
+            if (SpinSorter.enableControl) {
                 updateProfile(target, dt);
             } else {
                 spPos = pos;
@@ -128,29 +99,30 @@ public class CyclePIDFTuner extends LinearOpMode {
 
             // ----- Error -----
             double err = positionError(spPos, pos);
-            if (Math.abs(err) < positionDeadband) {
+            if (Math.abs(err) < SpinSorter.positionDeadband) {
                 err = 0.0;
             }
 
             // ----- PID -----
             integral += err * dt;
-            integral = Range.clip(integral, -iClamp, iClamp);
+            integral = Range.clip(integral, -SpinSorter.iClamp, SpinSorter.iClamp);
 
             double deriv = (err - lastErr) / dt;
             lastErr = err;
 
-            double uPid = kP * err + kI * integral + kD * deriv;
+            double uPid = SpinSorter.kP * err + SpinSorter.kI * integral + SpinSorter.kD * deriv;
 
             // ----- Feedforward -----
             double uFf = 0.0;
-            if (Math.abs(spVel) > 1e-6) uFf += Math.signum(spVel) * kS;
-            uFf += kV * spVel;
+            if (Math.abs(spVel) > 1e-6) uFf += Math.signum(spVel) * SpinSorter.kS;
+            uFf += SpinSorter.kV * spVel;
 
             double out = uPid + uFf;
+            if (SpinSorter.invertOutput) out = -out;
 
             // ----- Clamp & deadband -----
-            out = Range.clip(out, -maxPower, maxPower);
-            if (Math.abs(out) < outputDeadband) out = 0.0;
+            out = Range.clip(out, -SpinSorter.maxPower, SpinSorter.maxPower);
+            if (Math.abs(out) < SpinSorter.outputDeadband) out = 0.0;
 
             // =================================================
             // EXACT SAME POWER TO BOTH SERVOS — ALWAYS
@@ -159,16 +131,17 @@ public class CyclePIDFTuner extends LinearOpMode {
             cycle2.setPower(out);
 
             // ----- Telemetry -----
-            telemetry.addData("index", "%d / %d", idx, positions.length - 1);
+            telemetry.addData("nearest", "%d / %d", nearestIdx, Math.max(0, SpinSorter.presetPositions.length - 1));
+            telemetry.addData("targetIndex", "%d / %d", idx, Math.max(0, SpinSorter.presetPositions.length - 1));
             telemetry.addData("target", "%.3f", target);
             telemetry.addData("pos", "%.3f", pos);
             telemetry.addData("spPos/spVel", "%.3f / %.3f", spPos, spVel);
             telemetry.addData("err", "%.3f", err);
             telemetry.addData("out", "%.3f", out);
-            telemetry.addData("PID", "P %.2f  I %.2f  D %.2f", kP, kI, kD);
-            telemetry.addData("FF", "kS %.2f  kV %.2f", kS, kV);
+            telemetry.addData("PID", "P %.2f  I %.2f  D %.2f", SpinSorter.kP, SpinSorter.kI, SpinSorter.kD);
+            telemetry.addData("FF", "kS %.2f  kV %.2f", SpinSorter.kS, SpinSorter.kV);
             telemetry.addData("V", "%.3f", voltage);
-            telemetry.addData("minV/maxV", "%.3f / %.3f", minV, maxV);
+            telemetry.addData("minV/maxV", "%.3f / %.3f", SpinSorter.minV, SpinSorter.maxV);
             telemetry.update();
         }
     }
@@ -177,39 +150,45 @@ public class CyclePIDFTuner extends LinearOpMode {
     // Helper functions
     // =========================
 
-    private double normalize(double v) {
-        double denom = maxV - minV;
-        if (Math.abs(denom) < 1e-6) return 0.0;
-        return Range.clip((v - minV) / denom, 0.0, 1.0);
+    private double normalizeVoltage(double v) {
+        double pos = CycleWheelMath.normalizeVoltage(v, SpinSorter.minV, SpinSorter.maxV);
+        if (SpinSorter.invertSensor) pos = 1.0 - pos;
+        return (pos >= 1.0) ? 0.0 : pos;
     }
 
     private double positionError(double target, double current) {
-        double e = target - current;
-        if (!isWraparound) return e;
-
-        double e2 = e - 1.0;
-        double e3 = e + 1.0;
-
-        if (Math.abs(e2) < Math.abs(e)) return e2;
-        if (Math.abs(e3) < Math.abs(e)) return e3;
-        return e;
+        return CycleWheelMath.circleError(target, current);
     }
 
     private void updateProfile(double target, double dt) {
         double e = positionError(target, spPos);
 
-        double desiredVel = Range.clip(e / Math.max(dt, 0.02), -maxVel, maxVel);
+        double desiredVel = Range.clip(e / Math.max(dt, 0.02), -SpinSorter.maxVel, SpinSorter.maxVel);
 
-        double dvMax = maxAccel * dt;
+        double dvMax = SpinSorter.maxAccel * dt;
         spVel += Range.clip(desiredVel - spVel, -dvMax, dvMax);
-        spVel = Range.clip(spVel, -maxVel, maxVel);
+        spVel = Range.clip(spVel, -SpinSorter.maxVel, SpinSorter.maxVel);
 
         spPos += spVel * dt;
 
-        if (!isWraparound) {
-            spPos = Range.clip(spPos, 0.0, 1.0);
-        } else {
-            spPos = (spPos % 1.0 + 1.0) % 1.0;
-        }
+        spPos = CycleWheelMath.wrap01(spPos);
+    }
+
+    private double getPresetPos(int presetIdx) {
+        if (SpinSorter.presetPositions == null || SpinSorter.presetPositions.length == 0) return 0.0;
+        int idx = Range.clip(presetIdx, 0, SpinSorter.presetPositions.length - 1);
+        return CycleWheelMath.wrap01(SpinSorter.presetPositions[idx]);
+    }
+
+    public int getNearestPresetIndex(double posNorm) {
+        return CycleWheelMath.nearestIndexOnCircle(SpinSorter.presetPositions, posNorm);
+    }
+
+    /**
+     * Set the current target index. This only changes {@link #targetIndex}; the
+     * motion and wrap-around behavior are still governed by the existing profile + PID.
+     */
+    public void setTargetIndex(int idx) {
+        targetIndex = Range.clip(idx, 0, Math.max(0, SpinSorter.presetPositions.length - 1));
     }
 }
