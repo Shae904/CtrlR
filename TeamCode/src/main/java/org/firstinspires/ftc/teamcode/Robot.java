@@ -9,6 +9,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.AnalogInput;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
@@ -21,7 +22,6 @@ import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvWebcam;
@@ -52,15 +52,21 @@ public class Robot {
     public final DcMotor fl, fr, bl, br;
     public final DcMotorEx intake, launch;
 
-    public final ServoImplEx transfer, cycle, cycle1, cycle2;
+    // CRServos for cycle mech
+    public final CRServo cycle;   // “tuned” servo (used by CycleTest / PID tuner)
+    public final CRServo cycle1;  // first drive servo
+    public final CRServo cycle2;  // second drive servo
 
-    public final AnalogInput servoPos;
+    public final ServoImplEx transfer;
+
+    public final AnalogInput servoPos;   // analog feedback for cycle
 
     public static LinearOpMode opMode;
 
     public static double transferOne = 0.0;
     public static double transferTwo = 0.38;
 
+    // These are being used as POWER values for cycle1/cycle2 (not true positions)
     public static double[] cyclePos = {0.037, 0.226, 0.413, 0.6, 0.78};
     public int cpos = 0;
 
@@ -74,10 +80,10 @@ public class Robot {
     public static double transferTime = 0.2;  // todo tune
 
     // ===== one-person macro timings (shared) =====
-// Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
+    // Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
     public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
     public static double FIRE_FEED_TIME = 0.55;         // transferUp duration (raise if arm barely lifts ball)
-    public static double FIRE_DOWN_TIME = 0.5;         // time between shots with transferDown
+    public static double FIRE_DOWN_TIME = 0.5;          // time between shots with transferDown
 
     // distance to goal (updated when tag is seen)
     private double x = 128;
@@ -134,18 +140,26 @@ public class Robot {
         opMode.telemetry.addData("imu initialized", true);
         opMode.telemetry.update();
 
-        // servos
-        cycle = (ServoImplEx) hardwareMap.get(Servo.class, "cycle");
+        // === servos & analog feedback ===
+        // IMPORTANT: make sure config has these as Continuous Rotation Servos.
+        cycle  = hardwareMap.get(CRServo.class, "cycle");
+        cycle1 = hardwareMap.get(CRServo.class, "cycle1");
+        cycle2 = hardwareMap.get(CRServo.class, "cycle2");
+
+        // If one of the drive servos is mechanically mirrored, you can:
+        // - either flip it in config, OR
+        // - uncomment ONE of these:
+        // cycle1.setDirection(Direction.REVERSE);
+        // cycle2.setDirection(Direction.REVERSE);
+
         transfer = (ServoImplEx) hardwareMap.get(Servo.class, "transfer");
+
+        servoPos = hardwareMap.get(AnalogInput.class, "servoPos");
 
         // intake
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         intake.setMode(RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
-        cycle1 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle1");
-        cycle2 = (ServoImplEx) hardwareMap.get(Servo.class, "cycle2");
-        servoPos = hardwareMap.get(AnalogInput.class,"servoPos");
 
         // outtake
         launch = hardwareMap.get(DcMotorEx.class, "launch");
@@ -184,7 +198,7 @@ public class Robot {
         opMode.telemetry.addLine("initializing camera...");
         opMode.telemetry.update();
 
-        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+        webcam.openCameraDeviceAsync(new OpenCvWebcam.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
                 webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
@@ -219,25 +233,33 @@ public class Robot {
     // placeholder so tuner/teleop can call it (pid state is in those opmodes)
     public void resetAim() { }
 
-    // mechanisms
+    // ===== Cycle mech helpers =====
+
+    /**
+     * Direct manual power for the main cycle servo (used by CycleTest / PID tuner).
+     */
+    public void setCycleManualPower(double power) {
+        cycle.setPower(power);
+    }
+
+    /**
+     * Current analog voltage from the cycle position sensor.
+     */
+    public double getCycleVoltage() {
+        return servoPos.getVoltage();
+    }
+
+    /**
+     * Discrete “slot” helper for your teleops.
+     * NOTE: These values are being used as POWER for cycle1/2,
+     * not true positional control.
+     */
     public void setCycle(int pos) {
-        /*
-        if(cpos == 2 && pos == 1){
-            cpos = 1;
-        }
-        else if(cpos >= 2 && pos != 2){
-            cpos = pos + 3;
-        }
-        else {
-            cpos = pos;
-        }
-        // failsafe to prevent indexing errors
-        if(cpos >= 5){
-            cpos = 4;
-        }*/
-        cpos = pos;
-        cycle1.setPosition(cyclePos[cpos]);
-        cycle2.setPosition(cyclePos[cpos]);
+        // Simple index mapping (your newer behavior)
+        cpos = Range.clip(pos, 0, cyclePos.length - 1);
+        double p = cyclePos[cpos];
+        cycle1.setPower(p);
+        cycle2.setPower(p);
     }
 
     public void setLaunch(double power) {

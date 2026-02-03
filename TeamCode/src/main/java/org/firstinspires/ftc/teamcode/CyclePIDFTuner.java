@@ -19,10 +19,17 @@ public class CyclePIDFTuner extends LinearOpMode {
     // Analog calibration
     public static double minV = 0.10;
     public static double maxV = 3.20;
-    public static boolean isWraparound = false;
+    public static boolean isWraparound = true;
 
     // Target positions (normalized 0..1)
-    public static double[] positions = {0.10, 0.40, 0.70, 0.95};
+    public static double[] positions = {
+            0.096,
+            0.260,
+            0.430,
+            0.595,
+            0.764,
+            0.936
+    };
     public static int targetIndex = 0;
 
     // Enable controller output
@@ -44,6 +51,7 @@ public class CyclePIDFTuner extends LinearOpMode {
     // Output limits
     public static double maxPower = 1.0;
     public static double outputDeadband = 0.0;
+    public static double positionDeadband = 0.01;
     public static double iClamp = 0.25;
 
     // =========================
@@ -53,20 +61,21 @@ public class CyclePIDFTuner extends LinearOpMode {
     private double lastErr = 0.0;
 
     private double spPos = 0.0;
+
     private double spVel = 0.0;
 
     @Override
     public void runOpMode() {
 
         // ----- Hardware -----
-        CRServo servo1 = hardwareMap.get(CRServo.class, "servo1");
-        CRServo servo2 = hardwareMap.get(CRServo.class, "servo2");
-        AnalogInput servoAnalog = hardwareMap.get(AnalogInput.class, "servoAnalog");
+        CRServo cycle1 = hardwareMap.get(CRServo.class, "cycle1");
+        CRServo cycle2 = hardwareMap.get(CRServo.class, "cycle2");
+        AnalogInput servoPos = hardwareMap.get(AnalogInput.class, "servoAnalog");
 
         ElapsedTime timer = new ElapsedTime();
 
         // Initialize setpoint to current position
-        double voltage = servoAnalog.getVoltage();
+        double voltage = servoPos.getVoltage();
         double pos = normalize(voltage);
         spPos = pos;
         spVel = 0.0;
@@ -85,7 +94,7 @@ public class CyclePIDFTuner extends LinearOpMode {
             if (dt <= 0) dt = 0.02;
 
             // ----- Read position -----
-            voltage = servoAnalog.getVoltage();
+            voltage = servoPos.getVoltage();
             pos = normalize(voltage);
 
             // ----- Gamepad helpers -----
@@ -119,6 +128,9 @@ public class CyclePIDFTuner extends LinearOpMode {
 
             // ----- Error -----
             double err = positionError(spPos, pos);
+            if (Math.abs(err) < positionDeadband) {
+                err = 0.0;
+            }
 
             // ----- PID -----
             integral += err * dt;
@@ -143,8 +155,8 @@ public class CyclePIDFTuner extends LinearOpMode {
             // =================================================
             // EXACT SAME POWER TO BOTH SERVOS — ALWAYS
             // =================================================
-            servo1.setPower(out);
-            servo2.setPower(out);
+            cycle1.setPower(out);
+            cycle2.setPower(out);
 
             // ----- Telemetry -----
             telemetry.addData("index", "%d / %d", idx, positions.length - 1);

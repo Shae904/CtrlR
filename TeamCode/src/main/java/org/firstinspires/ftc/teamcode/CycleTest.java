@@ -20,7 +20,7 @@ public class CycleTest extends LinearOpMode{
         // LOOP
         while (opModeIsActive()) {
             if(gamepad1.a){
-                robot.cycle.setPosition(cyclePos);
+                robot.cycle.setPower(cyclePos);
             }
             if(gamepad1.x){
                 robot.setCycle(0);
@@ -32,6 +32,7 @@ public class CycleTest extends LinearOpMode{
                 robot.setCycle(2);
             }
             telemetry.addData("Voltage of Analog Output:",robot.servoPos.getVoltage());
+            telemetry.update();
         }
     }
 }
