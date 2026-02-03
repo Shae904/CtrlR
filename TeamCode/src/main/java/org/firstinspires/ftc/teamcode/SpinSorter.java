@@ -20,8 +20,8 @@ public class SpinSorter {
     // =========================
 
     // Analog calibration
-    public static double minV = 0.10;
-    public static double maxV = 3.20;
+    public static double minV = 0.008;
+    public static double maxV = 3.294;
     public static boolean invertSensor = false;
 
     // Motor direction (use if your loop runs away / sign is backwards)
@@ -32,11 +32,11 @@ public class SpinSorter {
      * Keep these sorted (increasing), with the last entry near 1.0 if you use wrap-around.
      */
     public static double[] presetPositions = {
-            0.096,
-            0.260,
-            0.430,
-            0.595,
-            0.764,
+            0.100,
+            0.258,
+            0.428,
+            0.593,
+            0.762,
             0.936
     };
 
@@ -53,14 +53,21 @@ public class SpinSorter {
     public static double kD = 0.15;
 
     // Feedforward (optional)
-    public static double kS = 0.0;
-    public static double kV = 0.0;
+    public static double kF = 0.0;
+    public static double MAX_POW = 0.25;
 
     // Output limits
     public static double maxPower = 1.0;
     public static double outputDeadband = 0.0;
     public static double positionDeadband = 0.01;
     public static double iClamp = 0.25;
+
+    /**
+     * When target is ~180deg away from current, the "shortest path" is ambiguous and
+     * small sensor noise can flip the sign of the circle error each loop.
+     * If | |err| - 0.5 | <= this epsilon, we force a consistent direction.
+     */
+    public static double halfTurnTieEps = 0.002;
 
     // =========================
     // Hardware
@@ -174,10 +181,11 @@ public class SpinSorter {
      */
     public void update() {
         double dt = timer.seconds();
-        timer.reset();
         if (dt <= 0) dt = 0.02;
 
         double pos = getPosition01();
+        int curIdx = getNearestPresetIndex();
+        int prefSign = preferredSignFromIndexDelta(curIdx, targetIndex, (presetPositions == null) ? 0 : presetPositions.length);
 
         if (!enableControl) {
             // Hold current position (no output) and clear integrators
@@ -190,7 +198,7 @@ public class SpinSorter {
         }
 
         // ----- Motion profile on the circle -----
-        double eSp = CycleWheelMath.circleError(targetPos, spPos);
+        double eSp = circleErrorWithHalfTurnTieBreak(targetPos, spPos, prefSign);
 
         double desiredVel = Range.clip(eSp / Math.max(dt, 0.02), -maxVel, maxVel);
 
@@ -201,35 +209,46 @@ public class SpinSorter {
         spPos = CycleWheelMath.wrap01(spPos + spVel * dt);
 
         // ----- Error (circle) -----
-        double err = CycleWheelMath.circleError(spPos, pos);
+        double err = circleErrorWithHalfTurnTieBreak(spPos, pos, prefSign);
         if (Math.abs(err) < positionDeadband) err = 0.0;
 
         // ----- PID -----
-        integral += err * dt;
-        integral = Range.clip(integral, -iClamp, iClamp);
 
-        double deriv = (err - lastErr) / dt;
-        lastErr = err;
+        double error = this.targetPos - pos;
 
-        double uPid = kP * err + kI * integral + kD * deriv;
+        integral += error * dt;
+        double derivative = (error - lastErr) / dt;
 
-        // ----- Feedforward -----
-        double uFf = 0.0;
-        if (Math.abs(spVel) > 1e-6) uFf += Math.signum(spVel) * kS;
-        uFf += kV * spVel;
+        lastErr = error;
 
-        double out = uPid + uFf;
+        double out = (error * kP) + (derivative * kD) + (integral * kI) + Math.signum(error) * kF;
+        timer.reset();
 
-        if (invertOutput) out = -out;
-
-        out = Range.clip(out, -maxPower, maxPower);
-        if (Math.abs(out) < outputDeadband) out = 0.0;
-
+        out = Range.clip(out, -MAX_POW, MAX_POW);
+        timer.reset();
         setPower(out);
     }
 
     public void setPower(double power) {
         cycle1.setPower(power);
         cycle2.setPower(power);
+    }
+
+    private static int preferredSignFromIndexDelta(int fromIdx, int toIdx, int length) {
+        if (length <= 0) return 1;
+        int delta = (toIdx - fromIdx) % length;
+        if (delta < 0) delta += length;
+        if (delta == 0) return 1;
+        // If exactly half-turn in index space (even length), pick a consistent direction (+).
+        if ((length % 2 == 0) && (delta == length / 2)) return 1;
+        return (delta < length / 2) ? 1 : -1;
+    }
+
+    private static double circleErrorWithHalfTurnTieBreak(double target, double current, int preferredSign) {
+        double e = CycleWheelMath.circleError(target, current);
+        if (Math.abs(Math.abs(e) - 0.5) <= halfTurnTieEps) {
+            return 0.5 * (preferredSign >= 0 ? 1.0 : -1.0);
+        }
+        return e;
     }
 }
