@@ -86,7 +86,7 @@ public class SpinSorter {
 
     public void resetToCurrent() {
         targetPos = getPosition();
-        targetIndex = (int) Math.round((presetPositions.length+1) / 2.0);
+        targetIndex = midPresetIndex();
         integral = 0.0;
         lastErr = 0.0;
         timer.reset();
@@ -94,10 +94,16 @@ public class SpinSorter {
 
     public double normalize(double voltage){
         double denom = maxV - minV;
-        return Range.clip((voltage - minV) / denom,0.0,1.0);
+        if (Math.abs(denom) < 1e-9) return 0.0;
+        return Range.clip((voltage - minV) / denom, 0.0, 1.0);
     }
     public double getPosition() {
-        return normalize(analog.getVoltage());
+        double p = normalize(analog.getVoltage());
+        if (invertSensor) p = 1.0 - p;
+        // Keep position on a unit circle [0,1) (treat 1.0 as 0.0)
+        if (p >= 1.0) p -= 1.0;
+        if (p < 0.0) p += 1.0;
+        return p;
     }
 
     public static int midPresetIndex() {
@@ -126,46 +132,78 @@ public class SpinSorter {
         setTargetPos(presetPositions[targetIndex]);
     }
     public void setIndex(int index) {
-        setTargetPos(presetPositions[index]);
+        if (presetPositions == null || presetPositions.length == 0) return;
+        int len = presetPositions.length;
+        int idx = index % len;
+        if (idx < 0) idx += len;
+        targetIndex = idx;
+        setTargetPos(presetPositions[idx]);
+    }
+
+    public int stepPresetIndex(int fromIndex, int step) {
+        if (presetPositions == null || presetPositions.length == 0) return 0;
+        int len = presetPositions.length;
+        int start = fromIndex % len;
+        if (start < 0) start += len;
+        int next = (start + step) % len;
+        if (next < 0) next += len;
+        return next;
     }
 
     public boolean atTarget() {
-        double err = Math.abs(targetPos - pos);
-        return err <= positionDeadband;
+        return Math.abs(calculateError()) <= positionDeadband;
     }
 
     public double calculateError(){
-        double e = Math.abs(targetPos - pos);
-        double e2 = Math.abs(e + 1);
-        double e3 = Math.abs(e - 1);
-        return Math.min(Math.min(e,e2),e3);
+        // Signed shortest-path error on a unit circle [-0.5, 0.5]
+        // Positive error means "move forward" (increasing position) to reach the target.
+        double e = targetPos - pos;
+        if (e > 0.5) e -= 1.0;
+        if (e < -0.5) e += 1.0;
+        return e;
     }
 
-    public void update() {
-        double dt = timer.seconds();
-        if (dt <= 0) dt = 0.02;
+    public void updatePosition() {
+        pos = getPosition();
+    }
 
+    public double updatePIDControl() {
         if (!enableControl) {
             // Hold current position (no output) and clear integrators
             integral = 0.0;
             lastErr = 0.0;
             setPower(0.0);
-            return;
+            return 0.0;
         }
-        pos = getPosition();
 
-        double error = calculateError();
+        error = calculateError();
+
+        if (Math.abs(error) <= positionDeadband) {
+            integral = 0.0;
+            lastErr = error;
+            setPower(0.0);
+            timer.reset();
+            return 0.0;
+        }
+
+        double dt = timer.seconds();
+        if (dt <= 0) dt = 0.02;
 
         integral += error * dt;
         double derivative = (error - lastErr) / dt;
-
         lastErr = error;
 
         double out = (error * kP) + (derivative * kD) + (integral * kI) + Math.signum(error) * kF;
-
         out = Range.clip(out, -MAX_POW, MAX_POW);
-        timer.reset();
+
         setPower(out);
+        timer.reset();
+        return out;
+    }
+
+    public void update() {
+        updatePosition();
+        updatePIDControl();
     }
 
     public void setPower(double power) {
