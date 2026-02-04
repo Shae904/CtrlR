@@ -56,7 +56,7 @@ public class CyclePIDFTuner extends LinearOpMode {
             // Capture calibration
             if (x && !lastX) SpinSorter.minV = robot.servoPos.getVoltage();
             if (y && !lastY) SpinSorter.maxV = robot.servoPos.getVoltage();
-
+//
             lastA = a; lastB = b; lastX = x; lastY = y;
 
             robot.spinSorter.updatePosition();
