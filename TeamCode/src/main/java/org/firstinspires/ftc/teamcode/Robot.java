@@ -236,9 +236,6 @@ public class Robot {
         intake.setPower(intakePower);
     }
 
-    // placeholder so tuner/teleop can call it (pid state is in those opmodes)
-    public void resetAim() { }
-
     // ===== Cycle mech helpers =====
 
     /**
@@ -251,27 +248,22 @@ public class Robot {
     /**
      * Current analog voltage from the cycle position sensor.
      */
-    public double getCycleVoltage() {
-        return servoPos.getVoltage();
-    }
-
-    /** Call every loop to update the spin sorter closed-loop control. */
     public void updateCycle() {
         spinSorter.update();
-        cpos = spinSorter.getNearestPresetIndex();
+        cpos = spinSorter.getTargetIndex();
     }
-
-    /** Command a given preset index in {@link SpinSorter#presetPositions}. */
+    public void cycleCW(){
+        spinSorter.cycleCW();
+    }
+    public void cycleCCW(){
+        spinSorter.cycleCCW();
+    }
     public void setCycle(int pos) {
-        spinSorter.setTargetPresetIndex(pos);
+        spinSorter.setIndex(pos);
     }
 
     public boolean cycleAtTarget() {
         return spinSorter.atTarget();
-    }
-
-    public void setLaunch(double power) {
-        launch.setPower(power);
     }
 
     public void transferUp() {

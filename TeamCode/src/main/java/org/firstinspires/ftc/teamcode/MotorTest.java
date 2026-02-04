@@ -32,7 +32,7 @@ public class MotorTest extends LinearOpMode{
             else {robot.setMotor(3, 0);}
 
             if(gamepad1.left_bumper){
-                robot.setLaunch(1);
+                robot.launch.setPower(1);
             }
             if(gamepad1.right_bumper){
                 robot.transferUp();
