@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 /**
@@ -40,19 +39,13 @@ public class SpinSorter {
     // Enable controller output
     public static boolean enableControl = true;
 
-    // Motion profile limits (normalized units/sec)
-    public static double maxVel = 1.5;
-    public static double maxAccel = 4.0;
-
-    // PID gains (normalized position -> power)
-    public static double kP = 0.007;
-    public static double kI = 0.0;
-    public static double kD = 0.001;
-
-    // Feedforward (optional)
+    // PF gains (normalized position -> power)
+    public static double kP = 0.015;
     public static double kF = 0.0;
-    public static double MAX_POW = 0.25;
-    public static double positionDeadband = 0.01;
+
+    public static double MAX_POW = 1;
+    public static double LOW_POW = 0.5;
+    public static double positionDeadband = 0.02;
 
     // =========================
     // Hardware
@@ -66,48 +59,21 @@ public class SpinSorter {
     // Internal controller state
     // =========================
     private boolean approaching = false;
-    private final ElapsedTime timer = new ElapsedTime();
-
     private double targetPos = 0.0;
     private int targetIndex = 0;
     private int lockedDir = 1;
 
-    private double integral = 0.0;
-    private double lastErr = 0.0;
-
-    public double pos = 0;
-    public double error = 0;
-
-    private boolean engageinBand = false;
+    private double pos = 0;
+    private double error = 0;
 
     public SpinSorter(CRServo cycle1, CRServo cycle2, AnalogInput analog) {
         this.cycle1 = cycle1;
         this.cycle2 = cycle2;
         this.analog = analog;
-        resetToCurrent();
-    }
-
-    public void resetToCurrent() {
-        targetPos = getPosition();
-        targetIndex = midPresetIndex();
+        this.updatePosition();
+        this.targetPos = this.pos;
+        this.targetIndex = midPresetIndex();
         lockedDir = 1;
-        integral = 0.0;
-        lastErr = 0.0;
-        timer.reset();
-    }
-
-    public double normalize(double voltage){
-        double denom = maxV - minV;
-        if (Math.abs(denom) < 1e-9) return 0.0;
-        return Range.clip((voltage - minV) / denom, 0.0, 1.0);
-    }
-    public double getPosition() {
-        double p = normalize(analog.getVoltage());
-        if (invertSensor) p = 1.0 - p;
-        // Keep position on a unit circle [0,1) (treat 1.0 as 0.0)
-        if (p >= 1.0) p -= 1.0;
-        if (p < 0.0) p += 1.0;
-        return p;
     }
 
     public static int midPresetIndex() {
@@ -115,19 +81,30 @@ public class SpinSorter {
         return presetPositions.length / 2;
     }
 
+    private static int preferredSignFromIndexDelta(int fromIdx, int toIdx, int length) {
+        if (length <= 0) return 1;
+        int delta = (toIdx - fromIdx) % length;
+        if (delta < 0) delta += length;
+        if (delta == 0) return 1;
+        // If exactly half-turn in index space (even length), pick a consistent direction (+).
+        if ((length % 2 == 0) && (delta == length / 2)) return 1;
+        return (delta < length / 2) ? 1 : -1;
+    }
+
+    public double normalize(double voltage){
+        double denom = maxV - minV;
+        if (Math.abs(denom) < 1e-9) return 0.0;
+        return Range.clip((voltage - minV) / denom, 0.0, 1.0);
+    }
+
+    public double getError() {
+      return error;
+    }
+
     public int getTargetIndex() {
         return targetIndex;
     }
 
-    public void setTargetPos(double target) {
-        if(target != targetPos){
-            targetPos = target;
-            timer.reset();
-            lastErr = 0;
-            integral = 0;
-            approaching = true;
-        }
-    }
     public void cycleCW(){
         int len = Math.max(1, SpinSorter.presetPositions.length);
         int nextIdx = (targetIndex + 1) % len;
@@ -135,6 +112,7 @@ public class SpinSorter {
         targetIndex = nextIdx;
         setTargetPos(presetPositions[targetIndex]);
     }
+
     public void cycleCCW(){
         int len = Math.max(1, SpinSorter.presetPositions.length);
         int nextIdx = (targetIndex - 1 + len) % len;
@@ -142,6 +120,7 @@ public class SpinSorter {
         targetIndex = nextIdx;
         setTargetPos(presetPositions[targetIndex]);
     }
+
     public void setIndex(int index) {
         if (presetPositions == null || presetPositions.length == 0) return;
         int len = presetPositions.length;
@@ -163,12 +142,14 @@ public class SpinSorter {
     }
 
     public boolean atTarget() {
-        return Math.abs(calculateError()) <= positionDeadband;
+        return this.atTarget(positionDeadband);
+    }
+
+    public boolean atTarget(double deadband) {
+      return Math.abs(this.getError()) <= deadband;
     }
 
     public double calculateError(){
-        // Signed shortest-path error on a unit circle [-0.5, 0.5]
-        // Positive error means "move forward" (increasing position) to reach the target.
         double e = targetPos - pos;
 
         if (approaching) {
@@ -180,40 +161,46 @@ public class SpinSorter {
         }
         return e;
     }
+
     public void updatePosition() {
-        pos = getPosition();
+        double p = normalize(analog.getVoltage());
+        if (invertSensor) p = 1.0 - p;
+        this.pos = p;
+    }
+
+    public void setTargetPos(double target) {
+      if(target != targetPos){
+        targetPos = target;
+        approaching = true;
+      }
+    }
+
+    public double getTargetPos(){
+      return this.targetPos;
+    }
+
+    public double getCurrentPos() {
+      return this.pos;
     }
 
     public double updatePIDControl() {
         if (!enableControl) {
-            // Hold current position (no output) and clear integrators
-            integral = 0.0;
-            lastErr = 0.0;
-            setPower(0.0);
+            this.setPower(0.0);
             return 0.0;
         }
 
-        error = calculateError();
-
-        if (Math.abs(error) <= positionDeadband) {
+        this.error = calculateError();
+        if (this.atTarget(positionDeadband*3)) {
             approaching = false;
         }
 
-        double dt = timer.seconds();
-        if (dt <= 0) dt = 0.02;
-
-        integral += error * dt;
-        double derivative = (error - lastErr) / dt;
-        lastErr = error;
-
-        double out = (error * kP) + (derivative * kD) + (integral * kI) + Math.signum(error) * kF;
+        double out = (error * kP) + Math.signum(error) * kF;
         out = Range.clip(out, -MAX_POW, MAX_POW);
         if (!approaching && Math.abs(error) <= positionDeadband) {
-            out = Range.clip(out, -0.25, 0.25);
+            out = Range.clip(out, -LOW_POW, LOW_POW);
         }
 
         setPower(out);
-        timer.reset();
         return out;
     }
 
@@ -223,20 +210,7 @@ public class SpinSorter {
     }
 
     public void setPower(double power) {
-        cycle1.setPower(power);
-        cycle2.setPower(power);
-    }
-
-    public double getTargetPos(){
-        return targetPos;
-    }
-    private static int preferredSignFromIndexDelta(int fromIdx, int toIdx, int length) {
-        if (length <= 0) return 1;
-        int delta = (toIdx - fromIdx) % length;
-        if (delta < 0) delta += length;
-        if (delta == 0) return 1;
-        // If exactly half-turn in index space (even length), pick a consistent direction (+).
-        if ((length % 2 == 0) && (delta == length / 2)) return 1;
-        return (delta < length / 2) ? 1 : -1;
+        this.cycle1.setPower(power);
+        this.cycle2.setPower(power);
     }
 }
