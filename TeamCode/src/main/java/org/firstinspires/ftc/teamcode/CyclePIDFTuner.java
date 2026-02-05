@@ -61,6 +61,7 @@ public class CyclePIDFTuner extends LinearOpMode {
 
             robot.spinSorter.updatePosition();
             robot.spinSorter.updatePIDControl();
+            double pidPower = robot.spinSorter.updatePIDControl();
 
             // ----- Telemetry -----
             telemetry.addData("targetIndex", "%d", robot.spinSorter.getTargetIndex());
@@ -70,8 +71,9 @@ public class CyclePIDFTuner extends LinearOpMode {
             telemetry.addData("|error|", "%.3f", Math.abs(robot.spinSorter.error));
             telemetry.addData("spPos/spVel", "%.3f / %.3f", spPos, spVel);
             telemetry.addData("PID", "P %.2f  I %.2f  D %.2f", SpinSorter.kP, SpinSorter.kI, SpinSorter.kD);
-            telemetry.addData("voltage", "%.3f", robot.servoPos.getVoltage());
+            telemetry.addData("output voltage", "%.3f", robot.servoPos.getVoltage());
             telemetry.addData("minV/maxV", "%.3f / %.3f", SpinSorter.minV, SpinSorter.maxV);
+            telemetry.addData("pid power", "%.3f", pidPower);
             telemetry.update();
         }
     }

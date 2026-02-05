@@ -65,17 +65,20 @@ public class SpinSorter {
     // =========================
     // Internal controller state
     // =========================
-
+    private boolean approaching = false;
     private final ElapsedTime timer = new ElapsedTime();
 
     private double targetPos = 0.0;
     private int targetIndex = 0;
+    private int lockedDir = 1;
 
     private double integral = 0.0;
     private double lastErr = 0.0;
 
     public double pos = 0;
     public double error = 0;
+
+    private boolean engageinBand = false;
 
     public SpinSorter(CRServo cycle1, CRServo cycle2, AnalogInput analog) {
         this.cycle1 = cycle1;
@@ -87,6 +90,7 @@ public class SpinSorter {
     public void resetToCurrent() {
         targetPos = getPosition();
         targetIndex = midPresetIndex();
+        lockedDir = 1;
         integral = 0.0;
         lastErr = 0.0;
         timer.reset();
@@ -124,11 +128,17 @@ public class SpinSorter {
         }
     }
     public void cycleCW(){
-        targetIndex = (targetIndex + 1) % Math.max(1, SpinSorter.presetPositions.length);
+        int len = Math.max(1, SpinSorter.presetPositions.length);
+        int nextIdx = (targetIndex + 1) % len;
+        lockedDir = preferredSignFromIndexDelta(targetIndex, nextIdx, len);
+        targetIndex = nextIdx;
         setTargetPos(presetPositions[targetIndex]);
     }
     public void cycleCCW(){
-        targetIndex = (targetIndex - 1 + Math.max(1, SpinSorter.presetPositions.length)) % Math.max(1, SpinSorter.presetPositions.length);
+        int len = Math.max(1, SpinSorter.presetPositions.length);
+        int nextIdx = (targetIndex - 1 + len) % len;
+        lockedDir = preferredSignFromIndexDelta(targetIndex, nextIdx, len);
+        targetIndex = nextIdx;
         setTargetPos(presetPositions[targetIndex]);
     }
     public void setIndex(int index) {
@@ -136,6 +146,7 @@ public class SpinSorter {
         int len = presetPositions.length;
         int idx = index % len;
         if (idx < 0) idx += len;
+        lockedDir = preferredSignFromIndexDelta(targetIndex, idx, len);
         targetIndex = idx;
         setTargetPos(presetPositions[idx]);
     }
@@ -158,11 +169,16 @@ public class SpinSorter {
         // Signed shortest-path error on a unit circle [-0.5, 0.5]
         // Positive error means "move forward" (increasing position) to reach the target.
         double e = targetPos - pos;
-        if (e > 0.5) e -= 1.0;
-        if (e < -0.5) e += 1.0;
+
+        if (approaching) {
+            if (lockedDir > 0 && e < 0) e += 1.0;
+            if (lockedDir < 0 && e > 0) e -= 1.0;
+        } else {
+            if (e > 0.5) e -= 1.0;
+            if (e < -0.5) e += 1.0;
+        }
         return e;
     }
-
     public void updatePosition() {
         pos = getPosition();
     }
@@ -179,11 +195,7 @@ public class SpinSorter {
         error = calculateError();
 
         if (Math.abs(error) <= positionDeadband) {
-            integral = 0.0;
-            lastErr = error;
-            setPower(0.0);
-            timer.reset();
-            return 0.0;
+            approaching = false;
         }
 
         double dt = timer.seconds();
@@ -195,6 +207,9 @@ public class SpinSorter {
 
         double out = (error * kP) + (derivative * kD) + (integral * kI) + Math.signum(error) * kF;
         out = Range.clip(out, -MAX_POW, MAX_POW);
+        if (!approaching && Math.abs(error) <= positionDeadband) {
+            out = Range.clip(out, -0.25, 0.25);
+        }
 
         setPower(out);
         timer.reset();
