@@ -125,6 +125,7 @@ public class SpinSorter {
             timer.reset();
             lastErr = 0;
             integral = 0;
+            approaching = true;
         }
     }
     public void cycleCW(){
