@@ -147,7 +147,7 @@ public class SpinSorter {
         int idx = index % len;
         if (idx < 0) idx += len;
         lockedDir = preferredSignFromIndexDelta(targetIndex, idx, len);
-        targetIndex = idx;
+        targetIndex = idx; //
         setTargetPos(presetPositions[idx]);
     }
 
