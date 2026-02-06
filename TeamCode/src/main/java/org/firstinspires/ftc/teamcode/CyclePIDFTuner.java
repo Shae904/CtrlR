@@ -49,6 +49,8 @@ public class CyclePIDFTuner extends LinearOpMode {
       telemetry.addData("targetPos", "%.3f", robot.spinSorter.getTargetPos());
       telemetry.addData("pos", "%.3f", robot.spinSorter.getCurrentPos());
       telemetry.addData("error (signed)", "%.3f", robot.spinSorter.getError());
+      telemetry.addData("lockedDir", "%d", robot.spinSorter.getLockedDir());
+      telemetry.addData("approaching", "%b", robot.spinSorter.isApproaching());
       telemetry.addData("pid power", "%.4f", pidPower);
       telemetry.addData("PID", "P %.4f  F %.4f", SpinSorter.kP, SpinSorter.kF);
       telemetry.addData("output voltage", "%.3f", robot.servoPos.getVoltage());

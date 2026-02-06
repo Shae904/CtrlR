@@ -81,7 +81,7 @@ public class SpinSorter {
         return presetPositions.length / 2;
     }
 
-    private static int preferredSignFromIndexDelta(int fromIdx, int toIdx, int length) {
+    public static int preferredSignFromIndexDelta(int fromIdx, int toIdx, int length) {
         if (length <= 0) return 1;
         int delta = (toIdx - fromIdx) % length;
         if (delta < 0) delta += length;
@@ -153,8 +153,8 @@ public class SpinSorter {
         double e = targetPos - pos;
 
         if (approaching) {
-            if (lockedDir > 0 && e < 0) e += 1.0;
-            if (lockedDir < 0 && e > 0) e -= 1.0;
+            if (lockedDir > 0 && e < -0.3) e += 1.0;
+            if (lockedDir < 0 && e > 0.3) e -= 1.0;
         } else {
             if (e > 0.5) e -= 1.0;
             if (e < -0.5) e += 1.0;
@@ -213,4 +213,12 @@ public class SpinSorter {
         this.cycle1.setPower(power);
         this.cycle2.setPower(power);
     }
+
+  public int getLockedDir() {
+    return lockedDir;
+  }
+
+  public boolean isApproaching() {
+    return approaching;
+  }
 }
