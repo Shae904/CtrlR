@@ -482,11 +482,11 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                 else if (picked == 1) step = STEP_FOR_CAM_SLOT1;
                 else step = STEP_FOR_CAM_SLOT2;
 
-                int nextIndex = robot.spinSorter.stepPresetIndex(s3CycleIndex, step);
-                s3CycleIndex = nextIndex;
-                s3TargetCycle = nextIndex;
-                robot.setCycle(s3TargetCycle);
-                robot.transferDown();
+//                int nextIndex = robot.spinSorter.stepPresetIndex(s3CycleIndex, step);
+//                s3CycleIndex = nextIndex;
+//                s3TargetCycle = nextIndex;
+//                robot.setCycle(s3TargetCycle);
+//                robot.transferDown();
 
                 // Update our saved slot model for the movement so it stays consistent.
                 // Right step: slot1 -> slot2, slot0 -> slot1, slot2 -> slot0.
