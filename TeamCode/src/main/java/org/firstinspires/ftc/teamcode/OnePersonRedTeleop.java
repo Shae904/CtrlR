@@ -352,6 +352,8 @@ public class OnePersonRedTeleop extends LinearOpMode {
             telemetry.addData("kp", Robot.AIM_Kp);
             telemetry.addData("kd", Robot.AIM_Kd);
             telemetry.addData("ks", Robot.AIM_Ks);
+            telemetry.addData("Fire3 State", ftState);
+            telemetry.addData("Sort3 State", s3State);
             telemetry.addData("db", Robot.AIM_DEADBAND);
             telemetry.addData("target vel", target);
             telemetry.addData("current vel", robot.launch.getVelocity());
@@ -477,20 +479,18 @@ public class OnePersonRedTeleop extends LinearOpMode {
                 // Right step: slot1 -> slot2, slot0 -> slot1, slot2 -> slot0.
                 // Left step:  slot0 -> slot2, slot2 -> slot1, slot1 -> slot0.
                 if (s3SavedSlots.length >= 3 && step != 0) {
-                    int steps = Math.abs(step);
-                    for (int s = 0; s < steps; s++) {
-                        if (step > 0) {
-                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[2];
-                            s3SavedSlots[2] = s3SavedSlots[1];
-                            s3SavedSlots[1] = s3SavedSlots[0];
-                            s3SavedSlots[0] = tmp;
-                        } else {
-                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[0];
-                            s3SavedSlots[0] = s3SavedSlots[1];
-                            s3SavedSlots[1] = s3SavedSlots[2];
-                            s3SavedSlots[2] = tmp;
-                        }
+                    if (step > 0) {
+                        C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[2];
+                        s3SavedSlots[2] = s3SavedSlots[1];
+                        s3SavedSlots[1] = s3SavedSlots[0];
+                        s3SavedSlots[0] = tmp;
+                    } else if(step < 0) {
+                        C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[0];
+                        s3SavedSlots[0] = s3SavedSlots[1];
+                        s3SavedSlots[1] = s3SavedSlots[2];
+                        s3SavedSlots[2] = tmp;
                     }
+
                 }
 
                 s3Timer.reset();
