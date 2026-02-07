@@ -21,14 +21,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
 
     public static Robot robot;
 
-    public enum RunState {
-        CW,
-        CCW,
-        INTAKE
-    }
-
-    public RunState state;
-
     // ===== aim pid (shared in Robot.java) =====
     // Uses Robot.AIM_Kp/AIM_Ki/AIM_Kd/AIM_Ks/AIM_DEADBAND and Robot.AIM_OFFSET_RED
     public static double maxTurn = 1.0;
@@ -172,8 +164,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
         robot = new Robot(this);
         robot.limelight.start();
         robot.limelight.pipelineSwitch(apriltagPipeline);
-
-        state = RunState.INTAKE;
         telemetry.setMsTransmissionInterval(50);
 
         final int initCycleIndex = SpinSorter.midPresetIndex();
@@ -290,26 +280,24 @@ public class OnePersonRedTeleop extends LinearOpMode {
             if (ftActive) {
                 runFireTestStep();
                 telemetryMacro(target, tx, rx, "firetest", ftState.toString(), patternLocked ? lockedPattern : pattern);
-                sleep(20);
                 continue;
             }
 
             if (s3Active) {
                 runSort3Step();
                 telemetryMacro(target, tx, rx, "sort3", s3State.toString(), lockedPattern);
-                sleep(20);
                 continue;
             }
 
             // ===== normal one-person controls =====
 
-            // state buttons
-            if (gamepad1.a) {
-                state = RunState.INTAKE;
-            } else if (gamepad1.x) {
-                state = RunState.CW;
-            } else if (gamepad1.b) {
-                state = RunState.CCW;
+            if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05){
+                robot.intake.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
+
+            } else if (gamepad1.xWasPressed()) {
+                robot.cycleCW();
+            } else if (gamepad1.bWasPressed()) {
+                robot.cycleCCW();
             }
 
             // transfer manual (LB)
@@ -324,42 +312,11 @@ public class OnePersonRedTeleop extends LinearOpMode {
             double out = gamepad1.left_trigger;
             double intakePow = out - in;
 
-            switch (state) {
-                case INTAKE:
-                    // IMPORTANT: You said the mechanism can intake at ANY wheel angle.
-                    // So INTAKE no longer forces a "rotate to intake alignment" move.
-                    robot.intake.setPower(Math.abs(intakePow) > 0.05 ? intakePow : 0);
-                    break;
-
-                case CW:
-                    if(!cycleCW){
-                        robot.cycleCW();
-                        cycleCW = true;
-                    }
-                    else{
-                        if(robot.cycleAtTarget())cycleCW=false;
-                    }
-                    robot.intake.setPower(0);
-                    break;
-
-                case CCW:
-                    if(!cycleCCW){
-                        robot.cycleCW();
-                        cycleCCW = true;
-                    }
-                    else{
-                        if(robot.cycleAtTarget())cycleCCW=false;
-                    }
-                    robot.cycleCCW();
-                    robot.intake.setPower(0);
-                    break;
-            }
 
             // Always keep the spin sorter control loop running
             robot.updateCycle();
 
             // telemetry
-            telemetry.addData("state", state);
             telemetry.addData("pattern(tag 21-23)", pattern);
             telemetry.addData("meaning", pattern == 21 ? "GPP" : (pattern == 22 ? "PGP" : "PPG"));
             telemetry.addData("aim", aimOn ? "on" : "off");
@@ -374,8 +331,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
             telemetry.addData("target vel", target);
             telemetry.addData("current vel", robot.launch.getVelocity());
             telemetry.update();
-
-            sleep(20);
         }
 
         // cleanup (async so we don't get "stuck in stop()")
@@ -402,23 +357,23 @@ public class OnePersonRedTeleop extends LinearOpMode {
     // ===== FireTest: 2 -> 0 -> 1 using time-based settle =====
     private void runFireTestStep() {
         switch (ftState) {
-            case MOVE: {
+            case MOVE:
                 robot.cycleCW();
                 robot.transferDown();
                 ftTimer.reset();
                 ftState = FireTestState.WAIT_AT_TARGET;
                 break;
-            }
 
-            case WAIT_AT_TARGET: {
+
+            case WAIT_AT_TARGET:
                 if (ftTimer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
                 break;
-            }
 
-            case FEED: {
+
+            case FEED:
                 robot.transferUp();
                 if (ftTimer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
@@ -426,16 +381,16 @@ public class OnePersonRedTeleop extends LinearOpMode {
                     ftState = FireTestState.DOWN;
                 }
                 break;
-            }
 
-            case DOWN: {
+
+            case DOWN:
                 if (ftTimer.seconds() >= Robot.FIRE_DOWN_TIME) {
                     ftState = FireTestState.NEXT;
                 }
                 break;
-            }
 
-            case NEXT: {
+
+            case NEXT:
                 ftIndex++;
                 if (ftIndex >= 3) {
                     ftState = FireTestState.DONE;
@@ -443,7 +398,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
                     ftState = FireTestState.MOVE;
                 }
                 break;
-            }
+
 
             case DONE:
             default:
