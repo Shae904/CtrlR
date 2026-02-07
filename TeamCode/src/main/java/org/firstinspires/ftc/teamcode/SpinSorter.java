@@ -21,19 +21,19 @@ public class SpinSorter {
     // Analog calibration
     public static double minV = 0.008;
     public static double maxV = 3.294;
-    public static boolean invertSensor = false;
+    public static boolean invertSensor = true;
 
     /**
      * Preset "stop" positions on the unit circle [0,1).
      * Keep these sorted (increasing), with the last entry near 1.0 if you use wrap-around.
      */
     public static double[] presetPositions = {
-            0.100,
-            0.258,
-            0.428,
-            0.593,
-            0.762,
-            0.936
+            0.065,
+            0.232,
+            0.405,
+            0.566,
+            0.737,
+            0.906
     };
 
     // Enable controller output
@@ -41,10 +41,11 @@ public class SpinSorter {
 
     // PF gains (normalized position -> power)
     // Tune these on the Dashboard
-    public static double kP = 0.20;
-    public static double kF = 0.05;  // static friction compensation (sign(error) * kF)
+    public static double kP = 1;
+    public static double kF = 0.015;  // static friction compensation (sign(error) * kF)
 
     public static double MAX_POW = 1.0;
+    public static double LOW_POW = 0.5;
     public static double positionDeadband = 0.003;  // target "in-band" threshold
 
     // =========================
@@ -212,7 +213,7 @@ public class SpinSorter {
 
     public boolean atTarget(double deadband) {
         // always use shortest-path error for this
-        double e = wrapShortest(targetPos - pos);
+        double e = calculateError();
         return Math.abs(e) <= deadband;
     }
 
@@ -238,14 +239,17 @@ public class SpinSorter {
         this.approaching = Math.abs(error) > positionDeadband;
 
         // Treat deadband as "stop" condition
-        if (Math.abs(this.error) <= positionDeadband) {
+        /*if (Math.abs(this.error) <= positionDeadband) {
             this.setPower(0.0);
             return 0.0;
-        }
+        }*/
 
         // PF control: proportional + static friction compensation
         double out = (error * kP) + Math.signum(error) * kF;
         out = Range.clip(out, -MAX_POW, MAX_POW);
+        if(!approaching && Math.abs(error) <= positionDeadband){
+            out = Range.clip(out, -LOW_POW,LOW_POW);
+        }
 
         setPower(out);
         return out;

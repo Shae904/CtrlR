@@ -126,6 +126,9 @@ public class OnePersonRedTeleop extends LinearOpMode {
     private boolean s3Active = false;
 
     private int s3Shot = 0;
+
+    private boolean cycleCW = false;
+    private boolean cycleCCW = false;
     private int s3TargetCycle = 0;
     private int s3CycleIndex = 0;
     private C920PanelsEOCV.C920Pipeline.SlotState[] s3SavedSlots = null;
@@ -329,11 +332,24 @@ public class OnePersonRedTeleop extends LinearOpMode {
                     break;
 
                 case CW:
-                    robot.cycleCW();
+                    if(!cycleCW){
+                        robot.cycleCW();
+                        cycleCW = true;
+                    }
+                    else{
+                        if(robot.cycleAtTarget())cycleCW=false;
+                    }
                     robot.intake.setPower(0);
                     break;
 
                 case CCW:
+                    if(!cycleCCW){
+                        robot.cycleCW();
+                        cycleCCW = true;
+                    }
+                    else{
+                        if(robot.cycleAtTarget())cycleCCW=false;
+                    }
                     robot.cycleCCW();
                     robot.intake.setPower(0);
                     break;
@@ -395,7 +411,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                if (ftTimer.seconds() > 0.02 && robot.cycleAtTarget()) {
+                if (ftTimer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -484,7 +500,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
                         s3SavedSlots[2] = s3SavedSlots[1];
                         s3SavedSlots[1] = s3SavedSlots[0];
                         s3SavedSlots[0] = tmp;
-                    } else if(step < 0) {
+                    } else if(step <= -1) {
                         C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[0];
                         s3SavedSlots[0] = s3SavedSlots[1];
                         s3SavedSlots[1] = s3SavedSlots[2];
@@ -499,7 +515,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                if (s3Timer.seconds() > 0.02 && robot.cycleAtTarget()) {
+                if (s3Timer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
