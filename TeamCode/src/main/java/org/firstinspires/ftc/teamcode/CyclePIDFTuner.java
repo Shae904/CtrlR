@@ -28,6 +28,7 @@ public class CyclePIDFTuner extends LinearOpMode {
 
       if (gamepad1.aWasPressed()) {
         robot.cycleCW();
+
       }
       if (gamepad1.bWasPressed()) {
         robot.cycleCCW();

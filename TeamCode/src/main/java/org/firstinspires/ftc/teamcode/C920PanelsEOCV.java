@@ -417,7 +417,6 @@ public class C920PanelsEOCV extends LinearOpMode {
 
                     runTFLiteOnROI(input, bounded, i);
                 }
-
             }
 
             // update bitmap for panels (annotated frame) (identical)
@@ -430,6 +429,43 @@ public class C920PanelsEOCV extends LinearOpMode {
             } catch (Exception e) {
                 // ignore
             }
+
+            // ---- DEBUG: label slot indices on the stream ----
+            try {
+                // slot 0 (triangle) label near its top-left
+                Imgproc.putText(
+                        input, "0",
+                        new Point(10, 140),
+                        Imgproc.FONT_HERSHEY_SIMPLEX,
+                        1.0,
+                        new Scalar(255, 255, 255),
+                        2
+                );
+
+                // slot 1 & 2 labels at the top-left of each bounded rect
+                for (int i = 1; i < slotRects.length; i++) {
+                    Rect r = slotRects[i];
+                    if (r == null) continue;
+
+                    Rect bounded = new Rect(
+                            Math.max(0, r.x),
+                            Math.max(0, r.y),
+                            Math.min(r.width,  Math.max(0, input.cols() - r.x)),
+                            Math.min(r.height, Math.max(0, input.rows() - r.y))
+                    );
+                    if (bounded.width <= 0 || bounded.height <= 0) continue;
+
+                    Imgproc.putText(
+                            input,
+                            String.valueOf(i),
+                            new Point(bounded.x + 5, bounded.y + 25),
+                            Imgproc.FONT_HERSHEY_SIMPLEX,
+                            1.0,
+                            new Scalar(255, 255, 255),
+                            2
+                    );
+                }
+            } catch (Exception ignored) { }
 
             return input;
         }

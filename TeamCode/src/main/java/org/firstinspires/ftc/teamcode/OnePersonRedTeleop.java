@@ -276,6 +276,9 @@ public class OnePersonRedTeleop extends LinearOpMode {
                 stopSort3();
             }
 
+            // Always keep the spin sorter control loop running (even during macros)
+            robot.updateCycle();
+
             // ===== macro runner ownership =====
             if (ftActive) {
                 runFireTestStep();
@@ -291,10 +294,13 @@ public class OnePersonRedTeleop extends LinearOpMode {
 
             // ===== normal one-person controls =====
 
-            if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05){
+            if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
                 robot.intake.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
+            }else{
+                robot.intake.setPower(0);
+            }
 
-            } else if (gamepad1.xWasPressed()) {
+            if (gamepad1.xWasPressed()) {
                 robot.cycleCW();
             } else if (gamepad1.bWasPressed()) {
                 robot.cycleCCW();
@@ -311,10 +317,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
             double in = gamepad1.right_trigger;
             double out = gamepad1.left_trigger;
             double intakePow = out - in;
-
-
-            // Always keep the spin sorter control loop running
-            robot.updateCycle();
 
             // telemetry
             telemetry.addData("pattern(tag 21-23)", pattern);
@@ -366,7 +368,8 @@ public class OnePersonRedTeleop extends LinearOpMode {
 
 
             case WAIT_AT_TARGET:
-                if (ftTimer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
+                // Prefer real "at target" lock; fall back to time-based settle
+                if (robot.spinSorter.atTarget() || ftTimer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -470,7 +473,8 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                if (s3Timer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
+                // Prefer real "at target" lock; fall back to time-based settle
+                if (robot.spinSorter.atTarget() || s3Timer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
