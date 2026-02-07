@@ -41,7 +41,7 @@ public class SpinSorter {
 
     // PF gains (normalized position -> power)
     // Tune these on the Dashboard
-    public static double kP = 1;
+    public static double kP = 1.4;
     public static double kF = 0.015;  // static friction compensation (sign(error) * kF)
 
     public static double MAX_POW = 1.0;
