@@ -157,18 +157,6 @@ public class RedFarNine extends LinearOpMode {
         public PathChain THIRDSHOOTTOGPP;
         public PathChain GPPTOLASTSHOOT;
         public PathChain PARK;
-
-        public static double[][] PoseCoords = {
-                {87,9,90}, // Start
-                {90,14,71.5}, // Shoot
-                {83,84,0}, // Intake PPG Start
-                {114,84,0}, // Intake PPG End
-                {83,60,0}, // Intake PGP Start
-                {114,60,0}, // Intake PGP End
-                {96,33,0}, // Intake GPP Start
-                {133,33,0}, // Intake GPP End
-                {90,50,62} // PARK
-        };
         public Paths(Follower follower) {
 
             FROMSTARTTOFIRSTSHOOT = follower.pathBuilder()
@@ -181,39 +169,38 @@ public class RedFarNine extends LinearOpMode {
 
             FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose(116.874, 98.464),
-                            new Pose(114.026, 81.868),
-                            new Pose(141.023, 83.245)
+                            new Pose(90, 14),
+                            new Pose(94, 39),
+                            new Pose(134, 36)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(-59), Math.toRadians(0))
+                    .setLinearHeadingInterpolation(Math.toRadians(71.5), Math.toRadians(0))
                     .build();
 
             PPGTOSECONDSHOOT = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(141.023, 83.245),
-                            new Pose(107.106, 88.980)
+                            new Pose(134, 36),
+                            new Pose(90, 14)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(71.5))
                     .build();
 
             SECONDSHOOTTOPGP = follower.pathBuilder()
                     .addPath(new BezierCurve(
-                            new Pose(107.106, 88.980),
-                            new Pose(85.646, 51.930),
-                            new Pose(147.642, 58.311)
+                            new Pose(90, 14),
+                            new Pose(87, 62),
+                            new Pose(133, 60)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(0))
+                    .setLinearHeadingInterpolation(Math.toRadians(71.5), Math.toRadians(0))
                     .build();
 
             PGPTOTHIRDSHOOT = follower.pathBuilder()
-                    .addPath(new BezierCurve(
-                            new Pose(147.642, 58.311),
-                            new Pose(116.291, 54.808),
-                            new Pose(99.603, 81.384)
+                    .addPath(new BezierLine(
+                            new Pose(133, 60),
+                            new Pose(90, 14)
                     ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(48))
+                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(71.5))
                     .build();
-
+            /*UNUSED IN 9 BALL
             THIRDSHOOTTOGPP = follower.pathBuilder()
                     .addPath(new BezierCurve(
                             new Pose(99.603, 81.384),
@@ -229,14 +216,14 @@ public class RedFarNine extends LinearOpMode {
                             new Pose(108.252, 88.894)
                     ))
                     .setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(48))
-                    .build();
+                    .build()*/
 
             PARK = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(108.252, 88.894),
-                            new Pose(111.974, 85.113)
+                            new Pose(90, 14),
+                            new Pose(88, 30)
                     ))
-                    .setConstantHeadingInterpolation(Math.toRadians(48))
+                    .setConstantHeadingInterpolation(Math.toRadians(71.5))
                     .build();
         }
     }
@@ -244,10 +231,10 @@ public class RedFarNine extends LinearOpMode {
     private Paths paths;
 
     // ===== shoot poses (endpoints of the shoot legs) =====
-    private static final Pose FIRST_SHOOT_POSE = new Pose(116.874, 98.464, Math.toRadians(45));
-    private static final Pose SECOND_SHOOT_POSE = new Pose(107.106, 88.980, Math.toRadians(45));
-    private static final Pose THIRD_SHOOT_POSE = new Pose(99.603, 81.384, Math.toRadians(45));
-    private static final Pose LAST_SHOOT_POSE = new Pose(108.252, 88.894, Math.toRadians(45));
+    private static final Pose FIRST_SHOOT_POSE = new Pose(90, 14, Math.toRadians(71.5));
+    private static final Pose SECOND_SHOOT_POSE = new Pose(90, 14, Math.toRadians(71.5));
+    private static final Pose THIRD_SHOOT_POSE = new Pose(90, 14, Math.toRadians(71.5));
+    private static final Pose LAST_SHOOT_POSE = new Pose(90, 14, Math.toRadians(71.5));
 
     // ===== state machine =====
     private enum State {
@@ -312,10 +299,11 @@ public class RedFarNine extends LinearOpMode {
                 break;
             }
         }
-        if (picked == -1) return;
-
-        int targetCycle = (robot.cpos + picked + 1) % 3;
-        robot.setCycle(targetCycle);
+        if (picked == 0) {
+            robot.cycleCW();
+        } else if(picked == 1){
+            robot.cycleCCW();
+        }
     }
 
     /**
@@ -405,14 +393,11 @@ public class RedFarNine extends LinearOpMode {
 
         // If we can't find the wanted color (or colors are null), don't stall.
         // Force a deterministic fallback so the cycler still moves.
-        int targetCycle;
-        if (picked == -1) {
-            targetCycle = (robot.cpos + 1) % 3;
-        } else {
-            targetCycle = (robot.cpos + picked + 1) % 3;
+        if (picked == -1 || picked == 0) {
+            robot.cycleCW();
+        } else if(picked == 1){
+            robot.cycleCCW();
         }
-
-        robot.setCycle(targetCycle);
 
         ElapsedTime t = new ElapsedTime();
 
@@ -574,7 +559,6 @@ public class RedFarNine extends LinearOpMode {
         pattern = 21;
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
-            robot.setCycle(0);
             robot.updateCycle();
             robot.transferDown();
             robot.intake.setPower(0);
@@ -675,7 +659,6 @@ public class RedFarNine extends LinearOpMode {
         robot.launch.setPower(0);
         robot.intake.setPower(0);
         robot.transferDown();
-        robot.setCycle(0);
         setDrivePowers(0, 0, 0);
     }
 }
