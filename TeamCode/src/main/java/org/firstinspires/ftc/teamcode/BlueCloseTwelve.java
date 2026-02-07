@@ -292,10 +292,12 @@ public class BlueCloseTwelve extends LinearOpMode {
         for (int i = 2; i >= 0; i--) {
             if (colors[i] == want) { picked = i; break; }
         }
-        if (picked == -1) return;
 
-        int targetCycle = (robot.cpos + picked + 1) % 3;
-        robot.setCycle(targetCycle);
+        if (picked == 0) {
+            robot.cycleCW();
+        } else if(picked == 1){
+            robot.cycleCCW();
+        }
     }
 
     /** Drive helper (robot-centric x/y + rx) */
@@ -362,11 +364,11 @@ public class BlueCloseTwelve extends LinearOpMode {
         }
 
         // if we can't find it, just fall back to "whatever" (don’t deadlock)
-        int targetCycle;
-        if (picked == -1) targetCycle = robot.cpos;
-        else targetCycle = (robot.cpos + picked + 1) % 3;
-
-        robot.setCycle(targetCycle);
+        if (picked == 0) {
+            robot.cycleCW();
+        } else if(picked == 1){
+            robot.cycleCCW();
+        }
 
         ElapsedTime t = new ElapsedTime();
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
@@ -511,7 +513,7 @@ public class BlueCloseTwelve extends LinearOpMode {
         paths = new Paths(follower);
 
         // starting pose must match the first point in FROMSTARTTOFIRSTSHOOT
-        follower.setStartingPose(new Pose(123.974, 119.682, Math.toRadians(135)));
+        follower.setStartingPose(new Pose(20.026, 119.682, Math.toRadians(45)));
 
         limelight = robot.getLimelight();
         limelight.start();
