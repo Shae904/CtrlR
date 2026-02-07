@@ -338,7 +338,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
             // ===== normal one-person controls =====
 
             if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
-                robot.intake.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
+                robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
             } else {
                 robot.intake.setPower(0);
             }

@@ -63,6 +63,15 @@ public class C920PanelsEOCV extends LinearOpMode {
     public static int upperS = 255;
     public static int upperV = 255;
 
+    // GREEN (Panels)
+    public static int greenLowerH = 75,  greenLowerS = 105, greenLowerV = 80;
+    public static int greenUpperH = 93,  greenUpperS = 255, greenUpperV = 255;
+
+    // PURPLE (Panels)
+    public static int purpleLowerH = 130, purpleLowerS = 60,  purpleLowerV = 60;
+    public static int purpleUpperH = 160, purpleUpperS = 255, purpleUpperV = 255;
+
+
     // TFLite controls (separate; does NOT change HSV API)
     public static boolean tfliteEnabled = false;
     public static int tfliteEveryNFrames = 2;
@@ -183,17 +192,18 @@ public class C920PanelsEOCV extends LinearOpMode {
 
         // slot 0 = triangle (EXACT POINTS)
         private final Point[] tri0Points = new Point[] {
-                new Point(0, 120),
-                new Point(0, 340),
-                new Point(120, 340),
-                new Point(120, 120)
+                new Point(0, 30),
+                new Point(0, 200),
+                new Point(210, 200),
+                new Point(110, 30)
+
         };
         private final MatOfPoint tri0Mat = new MatOfPoint(tri0Points);
 
         // slot 1 & 2 = rectangles (EXACT RECTS + mapping)
         private final Rect[] slotRects = new Rect[] {
                 null,
-                new Rect(420, 420, 220, 60),  // slot 1 (maps to slotStates[1])
+                new Rect(330, 350, 270, 130),  // slot 1 (maps to slotStates[1])
                 new Rect(330, 0, 230, 60)    // slot 2 (maps to slotStates[2])
         };
 
@@ -201,11 +211,20 @@ public class C920PanelsEOCV extends LinearOpMode {
                 SlotState.EMPTY, SlotState.EMPTY, SlotState.EMPTY
         };
 
-        private final Scalar greenLower = new Scalar(75, 105, 150);
-        private final Scalar greenUpper = new Scalar(93, 255, 255);
+        private Scalar greenLower() {
+            return new Scalar(C920PanelsEOCV.greenLowerH, C920PanelsEOCV.greenLowerS, C920PanelsEOCV.greenLowerV);
+        }
+        private Scalar greenUpper() {
+            return new Scalar(C920PanelsEOCV.greenUpperH, C920PanelsEOCV.greenUpperS, C920PanelsEOCV.greenUpperV);
+        }
 
-        private final Scalar purpleLower = new Scalar(130, 60, 60);
-        private final Scalar purpleUpper = new Scalar(160, 255, 255);
+        private Scalar purpleLower() {
+            return new Scalar(C920PanelsEOCV.purpleLowerH, C920PanelsEOCV.purpleLowerS, C920PanelsEOCV.purpleLowerV);
+        }
+        private Scalar purpleUpper() {
+            return new Scalar(C920PanelsEOCV.purpleUpperH, C920PanelsEOCV.purpleUpperS, C920PanelsEOCV.purpleUpperV);
+        }
+
 
         private final int minPixelsForBall = 1350;
 
@@ -277,8 +296,9 @@ public class C920PanelsEOCV extends LinearOpMode {
             lastS = mean.val[1];
             lastV = mean.val[2];
 
-            Core.inRange(hsv, greenLower, greenUpper, maskGreen);
-            Core.inRange(hsv, purpleLower, purpleUpper, maskPurple);
+            Core.inRange(hsv, greenLower(), greenUpper(), maskGreen);
+            Core.inRange(hsv, purpleLower(), purpleUpper(), maskPurple);
+
 
             // ===== slot 0: triangle =====
             slotMask.create(hsv.rows(), hsv.cols(), CvType.CV_8UC1);
@@ -340,11 +360,12 @@ public class C920PanelsEOCV extends LinearOpMode {
 
                 Mat slotHSV = hsv.submat(bounded);
 
-                Core.inRange(slotHSV, greenLower, greenUpper, maskGreen);
+                Core.inRange(slotHSV, greenLower(), greenUpper(), maskGreen);
                 int greenCount = Core.countNonZero(maskGreen);
 
-                Core.inRange(slotHSV, purpleLower, purpleUpper, maskPurple);
+                Core.inRange(slotHSV, purpleLower(), purpleUpper(), maskPurple);
                 int purpleCount = Core.countNonZero(maskPurple);
+
 
                 SlotState state = SlotState.EMPTY;
                 if (greenCount > purpleCount && greenCount > minPixelsForBall) {
