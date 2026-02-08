@@ -44,7 +44,7 @@ public class BlueFarNine extends LinearOpMode {
 
     // ===== auto aim =====
     public static int apriltagPipeline = 0;
-    public static int speakerTagIdRed = 24;
+    public static int speakerTagIdRed = 20;
 
     public static double aimMaxTurn = 0.6;
     public static double aimTimeoutSec = 1.2;
