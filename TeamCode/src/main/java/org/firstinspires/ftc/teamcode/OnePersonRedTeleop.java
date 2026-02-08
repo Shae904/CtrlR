@@ -168,7 +168,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
         if (picked == 0) return STEP_FOR_CAM_SLOT0;
         if (picked == 1) return STEP_FOR_CAM_SLOT1;
         if (picked == 2) return STEP_FOR_CAM_SLOT2;
-        return 0;
+        return 1;
     }
 
     private void applyCycleStep(int step) {
@@ -320,16 +320,14 @@ public class OnePersonRedTeleop extends LinearOpMode {
             }
 
             // Always keep sorter control loop running (even during macros)
-            robot.updateCycle();
+            robot.spinSorter.updatePosition();
 
             // ===== macro runner ownership =====
             if (ftActive) {
                 runFireTestStep();
                 telemetryMacro(target, tx, rx, "firetest", ftState.toString(), patternLocked ? lockedPattern : pattern);
                 continue;
-            }
-
-            if (s3Active) {
+            } else if (s3Active) {
                 runSort3Step();
                 telemetryMacro(target, tx, rx, "sort3", s3State.toString(), lockedPattern);
                 continue;
@@ -340,7 +338,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
             if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
                 robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
             } else {
-                robot.intake.setPower(0);
+                robot.intake.setPower(0.1);
             }
 
             if (gamepad1.xWasPressed()) {
@@ -377,26 +375,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
             telemetry.addData("current vel", robot.launch.getVelocity());
             telemetry.update();
         }
-
-        // cleanup
-        try { robot.transferDown(); } catch (Exception ignored) { }
-        try { robot.intake.setPower(0); } catch (Exception ignored) { }
-        try { robot.launch.setPower(0); } catch (Exception ignored) { }
-
-        new Thread(() -> {
-            try {
-                if (robot.webcam != null) {
-                    robot.webcam.stopStreaming();
-                    robot.webcam.closeCameraDevice();
-                }
-            } catch (Exception ignored) { }
-
-            try {
-                if (robot.limelight != null) {
-                    robot.limelight.close();
-                }
-            } catch (Exception ignored) { }
-        }).start();
     }
 
     // ===== FireTest =====
@@ -410,7 +388,7 @@ public class OnePersonRedTeleop extends LinearOpMode {
                 break;
 
             case WAIT_AT_TARGET:
-                if (robot.spinSorter.atTarget() || ftTimer.seconds() > Robot.FIRE_CYCLE_SETTLE_TIME) {
+                if (robot.spinSorter.atTarget() || ftTimer.seconds() > SORT_MOVE_TIMEOUT) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
@@ -471,11 +449,6 @@ public class OnePersonRedTeleop extends LinearOpMode {
                 }
 
                 s3Picked = picked;
-
-                if (picked < 0) {
-                    stopSort3();
-                    return;
-                }
 
                 int step = stepForPicked(picked);
                 s3LastStep = step;

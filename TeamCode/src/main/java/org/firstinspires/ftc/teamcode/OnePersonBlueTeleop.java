@@ -16,26 +16,16 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import java.util.List;
 
 @Configurable
-@TeleOp(name = "One Person Blue Teleop")
+@TeleOp(name = "One Person Blue  Teleop")
 public class OnePersonBlueTeleop extends LinearOpMode {
 
     public static Robot robot;
 
-    public enum RunState {
-        SHOOT0,
-        SHOOT1,
-        SHOOT2,
-        INTAKE
-    }
-
-    public RunState state;
-
     // ===== aim pid (shared in Robot.java) =====
-    // Uses Robot.AIM_Kp/AIM_Ki/AIM_Kd/AIM_Ks/AIM_DEADBAND and Robot.AIM_OFFSET_RED
     public static double maxTurn = 1.0;
 
     public static int apriltagPipeline = 0;
-    public static int targetTagId = 24;
+    public static int targetTagId = 20;
 
     public static boolean fieldCentric = false;
     public static double rotStickScale = 1.0;
@@ -51,9 +41,7 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         lastNanos = 0L;
     }
 
-    // ===== PATTERN (same logic as auton) =====
-    // tag id 21..23 -> pattern
-    // shot count == (pattern - 21) is GREEN, else PURPLE
+    // ===== PATTERN =====
     private int pattern = 21;         // default if no tag seen
     private int lockedPattern = 21;   // used during Sort3 macro
     private boolean patternLocked = false;
@@ -70,14 +58,13 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         for (LLResultTypes.FiducialResult f : fiducials) {
             int id = f.getFiducialId();
             if (id >= 21 && id <= 23) {
-                p = id; // EXACTLY like your auton
+                p = id;
             }
         }
         return p;
     }
 
-
-    // ===== Fire test macro (DPAD LEFT): fixed order 2 -> 0 -> 1 =====
+    // ===== Fire test macro (DPAD LEFT) =====
     private enum FireTestState {
         IDLE,
         MOVE, WAIT_AT_TARGET, FEED, DOWN,
@@ -88,12 +75,10 @@ public class OnePersonBlueTeleop extends LinearOpMode {
     private final ElapsedTime ftTimer = new ElapsedTime();
     private boolean ftActive = false;
 
-    private final int[] ftOrder = new int[] {0,1,2};
     private int ftIndex = 0;
-    private int currentTargetCycle = 0;
 
-    private boolean lastDpadLeft = false;
     private boolean lastDpadDown = false;
+    private boolean lastDpadRight = false;
 
     private void startFireTest() {
         ftActive = true;
@@ -108,14 +93,15 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         robot.transferDown();
     }
 
-    // ===== Sort3 macro (DPAD DOWN): uses OpenCV slot colors + pattern logic =====
+    // ===== Sort3 macro (DPAD DOWN) =====
     // Step mapping from camera slot index -> how many preset positions to move.
-    // Tune these if "left/right" feels swapped.
+    // Convention used here:
+    //   step > 0 => CCW steps
+    //   step < 0 => CW steps
     public static int STEP_FOR_CAM_SLOT0 = -1;
     public static int STEP_FOR_CAM_SLOT1 = 1;
     public static int STEP_FOR_CAM_SLOT2 = 0;
 
-    // Safety so we never wait forever if the analog is miscalibrated / controller disabled
     public static double SORT_MOVE_TIMEOUT = 1.25;
 
     private enum Sort3State {
@@ -129,25 +115,31 @@ public class OnePersonBlueTeleop extends LinearOpMode {
     private boolean s3Active = false;
 
     private int s3Shot = 0;
-    private int s3TargetCycle = 0;
+
     private int s3CycleIndex = 0;
     private C920PanelsEOCV.C920Pipeline.SlotState[] s3SavedSlots = null;
 
+    // debug
+    private int s3Picked = -1;
+    private int s3LastStep = 0;
+
+    private String s3FailReason = "";
     private void startSort3() {
-        // lock pattern ONCE like auton
         lockedPattern = readPatternFromLimelight();
         patternLocked = true;
-
-        // Snapshot the camera states ONCE for the whole macro (your request)
+        s3FailReason = "";
         if (robot.pipeline == null) {
-            stopSort3();
+            s3FailReason = "pipeline null (vision not init or camera failed)";
+            patternLocked = false;
             return;
         }
         C920PanelsEOCV.C920Pipeline.SlotState[] colors = robot.pipeline.getSlotStates();
         if (colors == null || colors.length < 3) {
-            stopSort3();
+            s3FailReason = "slotStates null/short";
+            patternLocked = false;
             return;
         }
+
         s3SavedSlots = colors.clone();
         s3CycleIndex = robot.cpos;
 
@@ -155,6 +147,9 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         s3State = Sort3State.PICK_AND_MOVE;
         s3Shot = 0;
         s3Timer.reset();
+
+        s3Picked = -1;
+        s3LastStep = 0;
     }
 
     private void stopSort3() {
@@ -163,6 +158,47 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         robot.transferDown();
         patternLocked = false;
         s3SavedSlots = null;
+        s3Picked = -1;
+        s3LastStep = 0;
+        s3FailReason = "";
+    }
+
+    // ===== Sort3 helpers =====
+    private int stepForPicked(int picked) {
+        if (picked == 0) return STEP_FOR_CAM_SLOT0;
+        if (picked == 1) return STEP_FOR_CAM_SLOT1;
+        if (picked == 2) return STEP_FOR_CAM_SLOT2;
+        return 1;
+    }
+
+    private void applyCycleStep(int step) {
+        int n = Math.abs(step);
+        for (int k = 0; k < n; k++) {
+            if (step > 0) robot.cycleCCW();
+            else if (step < 0) robot.cycleCW();
+        }
+    }
+
+    private void rotateSavedSlotsByStep(int step) {
+        if (s3SavedSlots == null || s3SavedSlots.length < 3) return;
+        if (step == 0) return;
+
+        int n = Math.abs(step);
+        for (int k = 0; k < n; k++) {
+            if (step > 0) {
+                // rotate RIGHT: [a,b,c] -> [c,a,b]
+                C920PanelsEOCV.C920Pipeline.SlotState c = s3SavedSlots[2];
+                s3SavedSlots[2] = s3SavedSlots[1];
+                s3SavedSlots[1] = s3SavedSlots[0];
+                s3SavedSlots[0] = c;
+            } else {
+                // rotate LEFT: [a,b,c] -> [b,c,a]
+                C920PanelsEOCV.C920Pipeline.SlotState a = s3SavedSlots[0];
+                s3SavedSlots[0] = s3SavedSlots[1];
+                s3SavedSlots[1] = s3SavedSlots[2];
+                s3SavedSlots[2] = a;
+            }
+        }
     }
 
     @Override
@@ -172,13 +208,10 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         robot = new Robot(this);
         robot.limelight.start();
         robot.limelight.pipelineSwitch(apriltagPipeline);
-
-        state = RunState.INTAKE;
         telemetry.setMsTransmissionInterval(50);
 
         final int initCycleIndex = SpinSorter.midPresetIndex();
 
-        // init loop: show pattern like auton does
         while (opModeInInit()) {
             pattern = readPatternFromLimelight();
             robot.setCycle(initCycleIndex);
@@ -197,22 +230,17 @@ public class OnePersonBlueTeleop extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            // Always keep the spin sorter control loop running
-            robot.updateCycle();
-
-            // pipeline switch only if changed
             if (apriltagPipeline != lastPipeline) {
                 robot.limelight.pipelineSwitch(apriltagPipeline);
                 lastPipeline = apriltagPipeline;
             }
 
-            // keep updating pattern when NOT locked in a macro
             if (!patternLocked) {
                 pattern = readPatternFromLimelight();
             }
 
-            // imu reset
-            if (gamepad1.dpad_right) {
+            // imu reset (moved off dpad so it doesn't conflict with Sort3)
+            if (gamepad1.yWasPressed()) {
                 robot.imu.resetYaw();
             }
 
@@ -232,7 +260,7 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                     resetPid();
                     rx = rxManual;
                 } else {
-                    rx = pidFromTx(tx, Robot.AIM_OFFSET_RED);
+                    rx = pidFromTx(tx, Robot.AIM_OFFSET_BLUE);
                 }
             } else {
                 resetPid();
@@ -241,7 +269,6 @@ public class OnePersonBlueTeleop extends LinearOpMode {
 
             rx = Range.clip(rx, -maxTurn, maxTurn);
 
-            // robot centric default, optional field centric
             double rotX = x;
             double rotY = y;
 
@@ -270,18 +297,21 @@ public class OnePersonBlueTeleop extends LinearOpMode {
             double target = robot.outtake('b');
 
             // ===== macro triggers (edge) =====
-            boolean dpadLeft = gamepad1.dpad_left;
             boolean dpadDown = gamepad1.dpad_down;
+            boolean dpadRight = gamepad1.dpad_right;
 
-            if (dpadLeft && !lastDpadLeft && !ftActive && !s3Active) {
+            // Fire3 / FireTest on DPAD DOWN
+            if (dpadDown && !lastDpadDown && !ftActive && !s3Active) {
                 startFireTest();
             }
-            if (dpadDown && !lastDpadDown && !ftActive && !s3Active) {
+
+            // Sort3 on DPAD RIGHT
+            if (dpadRight && !lastDpadRight && !ftActive && !s3Active) {
                 startSort3();
             }
 
-            lastDpadLeft = dpadLeft;
             lastDpadDown = dpadDown;
+            lastDpadRight = dpadRight;
 
             // allow A to cancel any macro
             if ((ftActive || s3Active) && gamepad1.a) {
@@ -289,32 +319,34 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                 stopSort3();
             }
 
+            // Always keep sorter control loop running (even during macros)
+            robot.updateCycle();
+
             // ===== macro runner ownership =====
             if (ftActive) {
                 runFireTestStep();
                 telemetryMacro(target, tx, rx, "firetest", ftState.toString(), patternLocked ? lockedPattern : pattern);
-                sleep(20);
                 continue;
             }
 
             if (s3Active) {
                 runSort3Step();
                 telemetryMacro(target, tx, rx, "sort3", s3State.toString(), lockedPattern);
-                sleep(20);
                 continue;
             }
 
             // ===== normal one-person controls =====
 
-            // state buttons
-            if (gamepad1.a) {
-                state = RunState.INTAKE;
-            } else if (gamepad1.x) {
-                state = RunState.SHOOT0;
-            } else if (gamepad1.y) {
-                state = RunState.SHOOT1;
-            } else if (gamepad1.b) {
-                state = RunState.SHOOT2;
+            if (gamepad1.right_trigger > 0.05 || gamepad1.left_trigger > 0.05) {
+                robot.intake.setPower(gamepad1.left_trigger - gamepad1.right_trigger);
+            } else {
+                robot.intake.setPower(0);
+            }
+
+            if (gamepad1.xWasPressed()) {
+                robot.cycleCW();
+            } else if (gamepad1.bWasPressed()) {
+                robot.cycleCCW();
             }
 
             // transfer manual (LB)
@@ -324,36 +356,7 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                 robot.transferDown();
             }
 
-            // intake (rt in, lt out)
-            double in = gamepad1.right_trigger;
-            double out = gamepad1.left_trigger;
-            double intakePow = out - in;
-
-            switch (state) {
-                case INTAKE:
-                    // IMPORTANT: You said the mechanism can intake at ANY wheel angle.
-                    // So INTAKE no longer forces a "rotate to intake alignment" move.
-                    robot.intake.setPower(Math.abs(intakePow) > 0.05 ? intakePow : 0);
-                    break;
-
-                case SHOOT0:
-                    robot.setCycle(1);
-                    robot.intake.setPower(0);
-                    break;
-
-                case SHOOT1:
-                    robot.setCycle(2);
-                    robot.intake.setPower(0);
-                    break;
-
-                case SHOOT2:
-                    robot.setCycle(0);
-                    robot.intake.setPower(0);
-                    break;
-            }
-
             // telemetry
-            telemetry.addData("state", state);
             telemetry.addData("pattern(tag 21-23)", pattern);
             telemetry.addData("meaning", pattern == 21 ? "GPP" : (pattern == 22 ? "PGP" : "PPG"));
             telemetry.addData("aim", aimOn ? "on" : "off");
@@ -362,56 +365,38 @@ public class OnePersonBlueTeleop extends LinearOpMode {
             telemetry.addData("kp", Robot.AIM_Kp);
             telemetry.addData("kd", Robot.AIM_Kd);
             telemetry.addData("ks", Robot.AIM_Ks);
+            telemetry.addData("Fire3 State", ftState);
+            telemetry.addData("Sort3 State", s3State);
+            telemetry.addData("Sort3 slots", (s3SavedSlots == null) ? "null" :
+                    String.format("%s %s %s", s3SavedSlots[0], s3SavedSlots[1], s3SavedSlots[2]));
+            telemetry.addData("Sort3 picked", s3Picked);
+            telemetry.addData("Sort3 step", s3LastStep);
+            telemetry.addData("", s3FailReason);
             telemetry.addData("db", Robot.AIM_DEADBAND);
             telemetry.addData("target vel", target);
             telemetry.addData("current vel", robot.launch.getVelocity());
             telemetry.update();
-
-            sleep(20);
         }
-
-        // cleanup (async so we don't get "stuck in stop()")
-        try { robot.transferDown(); } catch (Exception ignored) { }
-        try { robot.intake.setPower(0); } catch (Exception ignored) { }
-        try { robot.launch.setPower(0); } catch (Exception ignored) { }
-
-        new Thread(() -> {
-            try {
-                if (robot.webcam != null) {
-                    robot.webcam.stopStreaming();
-                    robot.webcam.closeCameraDevice();
-                }
-            } catch (Exception ignored) { }
-
-            try {
-                if (robot.limelight != null) {
-                    robot.limelight.close();
-                }
-            } catch (Exception ignored) { }
-        }).start();
     }
 
-    // ===== FireTest: 2 -> 0 -> 1 using time-based settle =====
+    // ===== FireTest =====
     private void runFireTestStep() {
         switch (ftState) {
-            case MOVE: {
-                currentTargetCycle = ftOrder[ftIndex];
-                robot.setCycle(currentTargetCycle);
+            case MOVE:
+                robot.cycleCW();
                 robot.transferDown();
                 ftTimer.reset();
                 ftState = FireTestState.WAIT_AT_TARGET;
                 break;
-            }
 
-            case WAIT_AT_TARGET: {
-                if (ftTimer.seconds() > 0.02 && robot.cycleAtTarget()) {
+            case WAIT_AT_TARGET:
+                if (robot.spinSorter.atTarget() || ftTimer.seconds() > SORT_MOVE_TIMEOUT) {
                     ftTimer.reset();
                     ftState = FireTestState.FEED;
                 }
                 break;
-            }
 
-            case FEED: {
+            case FEED:
                 robot.transferUp();
                 if (ftTimer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
@@ -419,24 +404,21 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                     ftState = FireTestState.DOWN;
                 }
                 break;
-            }
 
-            case DOWN: {
+            case DOWN:
                 if (ftTimer.seconds() >= Robot.FIRE_DOWN_TIME) {
                     ftState = FireTestState.NEXT;
                 }
                 break;
-            }
 
-            case NEXT: {
+            case NEXT:
                 ftIndex++;
-                if (ftIndex >= ftOrder.length) {
+                if (ftIndex >= 3) {
                     ftState = FireTestState.DONE;
                 } else {
                     ftState = FireTestState.MOVE;
                 }
                 break;
-            }
 
             case DONE:
             default:
@@ -445,7 +427,7 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         }
     }
 
-    // ===== Sort3: uses your auton/teleop sorting logic + pattern =====
+    // ===== Sort3 =====
     private void runSort3Step() {
         switch (s3State) {
             case PICK_AND_MOVE: {
@@ -454,15 +436,12 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                     return;
                 }
 
-                // EXACTLY like auton:
-                // green only when count == (pattern - 21)
                 C920PanelsEOCV.C920Pipeline.SlotState want =
                         (s3Shot == (lockedPattern - 21))
                                 ? C920PanelsEOCV.C920Pipeline.SlotState.GREEN
                                 : C920PanelsEOCV.C920Pipeline.SlotState.PURPLE;
 
-                // Pick i=2->0. Slot 2 is treated as "current shooter", and slots 0/1 map
-                // to "move left" / "move right" by preset index.
+                // prefer shooter (2) then 1 then 0
                 int picked = -1;
                 for (int i = 2; i >= 0; i--) {
                     if (s3SavedSlots[i] == want) {
@@ -471,42 +450,18 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                     }
                 }
 
-                // if we didn't find the wanted color, stop the macro
-                if (picked == -1) {
-                    stopSort3();
-                    return;
-                }
+                s3Picked = picked;
 
-                int step;
-                if (picked == 0) step = STEP_FOR_CAM_SLOT0;
-                else if (picked == 1) step = STEP_FOR_CAM_SLOT1;
-                else step = STEP_FOR_CAM_SLOT2;
+                int step = stepForPicked(picked);
+                s3LastStep = step;
 
-//                int nextIndex = robot.spinSorter.stepPresetIndex(s3CycleIndex, step);
-//                s3CycleIndex = nextIndex;
-//                s3TargetCycle = nextIndex;
-//                robot.setCycle(s3TargetCycle);
-//                robot.transferDown();
+                robot.transferDown();
 
-                // Update our saved slot model for the movement so it stays consistent.
-                // Right step: slot1 -> slot2, slot0 -> slot1, slot2 -> slot0.
-                // Left step:  slot0 -> slot2, slot2 -> slot1, slot1 -> slot0.
-                if (s3SavedSlots.length >= 3 && step != 0) {
-                    int steps = Math.abs(step);
-                    for (int s = 0; s < steps; s++) {
-                        if (step > 0) {
-                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[2];
-                            s3SavedSlots[2] = s3SavedSlots[1];
-                            s3SavedSlots[1] = s3SavedSlots[0];
-                            s3SavedSlots[0] = tmp;
-                        } else {
-                            C920PanelsEOCV.C920Pipeline.SlotState tmp = s3SavedSlots[0];
-                            s3SavedSlots[0] = s3SavedSlots[1];
-                            s3SavedSlots[1] = s3SavedSlots[2];
-                            s3SavedSlots[2] = tmp;
-                        }
-                    }
-                }
+                // Move cycle
+                applyCycleStep(step);
+
+                // Keep internal model consistent
+                rotateSavedSlotsByStep(step);
 
                 s3Timer.reset();
                 s3State = Sort3State.WAIT_AT_TARGET;
@@ -514,11 +469,7 @@ public class OnePersonBlueTeleop extends LinearOpMode {
             }
 
             case WAIT_AT_TARGET: {
-                if (s3Timer.seconds() > SORT_MOVE_TIMEOUT) {
-                    stopSort3();
-                    return;
-                }
-                if (s3Timer.seconds() > 0.02 && robot.cycleAtTarget()) {
+                if (robot.spinSorter.atTarget() || s3Timer.seconds() > SORT_MOVE_TIMEOUT) {
                     s3Timer.reset();
                     s3State = Sort3State.FEED;
                 }
@@ -529,7 +480,6 @@ public class OnePersonBlueTeleop extends LinearOpMode {
                 robot.transferUp();
                 if (s3Timer.seconds() >= Robot.FIRE_FEED_TIME) {
                     robot.transferDown();
-                    // Mark the fired ball as gone in our saved model
                     if (s3SavedSlots != null && s3SavedSlots.length >= 3) {
                         s3SavedSlots[2] = C920PanelsEOCV.C920Pipeline.SlotState.EMPTY;
                     }
@@ -573,6 +523,11 @@ public class OnePersonBlueTeleop extends LinearOpMode {
         telemetry.addData("rx", String.format("%.2f", rx));
         telemetry.addData("target vel", target);
         telemetry.addData("current vel", robot.launch.getVelocity());
+        telemetry.addData("Sort3 slots", (s3SavedSlots == null) ? "null" :
+                String.format("%s %s %s", s3SavedSlots[0], s3SavedSlots[1], s3SavedSlots[2]));
+        telemetry.addData("Sort3 picked", s3Picked);
+        telemetry.addData("Sort3 step", s3LastStep);
+        telemetry.addData("Sort3 fail", s3FailReason);
         telemetry.update();
     }
 

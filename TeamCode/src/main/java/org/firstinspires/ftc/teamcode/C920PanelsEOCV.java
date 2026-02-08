@@ -204,7 +204,7 @@ public class C920PanelsEOCV extends LinearOpMode {
         private final Rect[] slotRects = new Rect[] {
                 null,
                 new Rect(330, 350, 270, 130),  // slot 1 (maps to slotStates[1])
-                new Rect(330, 0, 230, 60)    // slot 2 (maps to slotStates[2])
+                new Rect(330, 0, 230, 55)    // slot 2 (maps to slotStates[2])
         };
 
         private final SlotState[] slotStates = new SlotState[] {

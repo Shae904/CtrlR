@@ -20,7 +20,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.List;
 
-@Autonomous(name = "Red Far 9")
+@Autonomous(name = "Blue Far 9")
 public class BlueFarNine extends LinearOpMode {
 
     // ===== robot + pedro =====
@@ -124,7 +124,7 @@ public class BlueFarNine extends LinearOpMode {
 
             Double tx = getTxForTag(speakerTagIdRed);
             if (tx != null) {
-                double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
+                double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_BLUE);
                 turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
 
                 robot.fl.setPower(turn);
@@ -358,7 +358,7 @@ public class BlueFarNine extends LinearOpMode {
         // Rotation from tag (if visible)
         double rx = 0.0;
         if (txOrNull != null) {
-            rx = aimPidFromTx(txOrNull, Robot.AIM_OFFSET_RED);
+            rx = aimPidFromTx(txOrNull, Robot.AIM_OFFSET_BLUE);
             rx = Range.clip(rx, -aimMaxTurn, aimMaxTurn);
         }
 
@@ -560,6 +560,7 @@ public class BlueFarNine extends LinearOpMode {
         pattern = 21;
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
+            robot.setMiddleCycle();
             robot.updateCycle();
             robot.transferDown();
             robot.intake.setPower(0);
@@ -658,6 +659,7 @@ public class BlueFarNine extends LinearOpMode {
 
         // stop outputs
         robot.launch.setPower(0);
+        robot.setMiddleCycle();
         robot.intake.setPower(0);
         robot.transferDown();
         setDrivePowers(0, 0, 0);

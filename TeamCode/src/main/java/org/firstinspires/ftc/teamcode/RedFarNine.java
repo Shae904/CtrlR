@@ -559,6 +559,7 @@ public class RedFarNine extends LinearOpMode {
         pattern = 21;
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
+            robot.setMiddleCycle();
             robot.updateCycle();
             robot.transferDown();
             robot.intake.setPower(0);
@@ -658,6 +659,7 @@ public class RedFarNine extends LinearOpMode {
         // stop outputs
         robot.launch.setPower(0);
         robot.intake.setPower(0);
+        robot.setMiddleCycle();
         robot.transferDown();
         setDrivePowers(0, 0, 0);
     }

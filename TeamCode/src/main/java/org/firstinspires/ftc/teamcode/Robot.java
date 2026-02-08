@@ -80,9 +80,9 @@ public class Robot {
 
     // ===== one-person macro timings (shared) =====
     // Used by OnePersonAltRedTeleop fire-test and sort3 macros (time-based; no analog gating)
-    public static double FIRE_CYCLE_SETTLE_TIME = 0.35; // wait after setCycle() before feeding
-    public static double FIRE_FEED_TIME = 0.55;         // transferUp duration (raise if arm barely lifts ball)
-    public static double FIRE_DOWN_TIME = 0.5;          // time between shots with transferDown
+    public static double FIRE_CYCLE_SETTLE_TIME = 0.175; // wait after setCycle() before feeding
+    public static double FIRE_FEED_TIME = 0.275;         // transferUp duration (raise if arm barely lifts ball)
+    public static double FIRE_DOWN_TIME = 0.25;          // time between shots with transferDown
 
     // distance to goal (updated when tag is seen)
     private double x = 128;
@@ -95,7 +95,7 @@ public class Robot {
     public static double AIM_DEADBAND = 0.7;
 
     public static double AIM_OFFSET_RED = -4.4;
-    public static double AIM_OFFSET_BLUE = 0.0;
+    public static double AIM_OFFSET_BLUE = 4.4;
 
     // set false in an opmode before new Robot(this) if you don't want camera init
     public static boolean INIT_VISION = true;
@@ -264,6 +264,9 @@ public class Robot {
 
     public boolean cycleAtTarget() {
         return spinSorter.atTarget();
+    }
+    public void setMiddleCycle(){
+        spinSorter.setIndex(SpinSorter.midPresetIndex());
     }
 
     public void transferUp() {

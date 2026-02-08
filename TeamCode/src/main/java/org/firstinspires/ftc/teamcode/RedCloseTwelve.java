@@ -20,7 +20,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.List;
 
-@Autonomous(name = "Red Close 12")
+@Autonomous(name = "Red Close 9")
 public class RedCloseTwelve extends LinearOpMode {
 
     // ===== robot + pedro =====
@@ -33,9 +33,10 @@ public class RedCloseTwelve extends LinearOpMode {
     public static double INTAKE_HALF = -0.5; // conserve voltage while traveling to shoot
 
     // shot macro timings (use these instead of Robot.cycleTime/outTime/transferTime)
-    public static double CYCLE_SETTLE = Robot.FIRE_CYCLE_SETTLE_TIME; // let cycler servo move a bit
-    public static double FEED_TIME    = Robot.FIRE_FEED_TIME; // HOLD transferUp (increase if it "barely swings up")
-    public static double DOWN_TIME    = Robot.FIRE_DOWN_TIME; // time between shots (transfer down)
+    public static double CYCLE_SETTLE = 0.12; // let cycler servo move a bit
+    public static double FEED_DELAY   = 0.25; // wait before transferUp (your teleop macro style)
+    public static double FEED_TIME    = 0.28; // HOLD transferUp (increase if it "barely swings up")
+    public static double DOWN_TIME    = 0.40; // time between shots (transfer down)
 
     // ===== pattern =====
     // tag 21..23 -> pattern; green index = (pattern - 21) (0..2)
@@ -108,40 +109,6 @@ public class RedCloseTwelve extends LinearOpMode {
      * Short aim "nudge" used right before shooting to let heading catch up.
      * If tag visible, apply PID turn for up to `seconds`; else hold still.
      */
-    private void microAimAtSpeakerTag(double seconds) {
-        resetAimPid();
-        try { limelight.pipelineSwitch(apriltagPipeline); } catch (Exception ignored) {}
-
-        ElapsedTime t = new ElapsedTime();
-
-        while (opModeIsActive() && t.seconds() < seconds) {
-            robot.outtake('r');
-            robot.intake.setPower(INTAKE_HALF);
-
-            Double tx = getTxForTag(speakerTagIdRed);
-            if (tx != null) {
-                double turn = aimPidFromTx(tx, Robot.AIM_OFFSET_RED);
-                turn = Range.clip(turn, -aimMaxTurn, aimMaxTurn);
-
-                robot.fl.setPower( turn);
-                robot.bl.setPower( turn);
-                robot.fr.setPower(-turn);
-                robot.br.setPower(-turn);
-            } else {
-                robot.fl.setPower(0);
-                robot.bl.setPower(0);
-                robot.fr.setPower(0);
-                robot.br.setPower(0);
-            }
-
-            sleep(20);
-        }
-
-        robot.fl.setPower(0);
-        robot.bl.setPower(0);
-        robot.fr.setPower(0);
-        robot.br.setPower(0);
-    }
 
     // ===== paths (your coords) =====
     public static class Paths {
@@ -155,105 +122,108 @@ public class RedCloseTwelve extends LinearOpMode {
         public PathChain PARK;
 
         public Paths(Follower follower) {
+            FROMSTARTTOFIRSTSHOOT = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(122.781, 123.258),
 
-            FROMSTARTTOFIRSTSHOOT = follower.pathBuilder()
-                    .addPath(new BezierLine(
-                            new Pose(123.974, 119.682),
-                            new Pose(102.728,  97.510)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(45))
+                                    new Pose(97.722, 105.854)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(125), Math.toRadians(30))
+
                     .build();
 
-            FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder()
-                    .addPath(new BezierCurve(
-                            new Pose(102.728,  97.510),
-                            new Pose(116.649,  87.113),
-                            new Pose(129.046,  73.470)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(-59), Math.toRadians(0))
+            FIRSTSHOOTTOINTAKEPPG = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(97.722, 105.854),
+                                    new Pose(114.026, 81.868),
+                                    new Pose(129.023, 83.245)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(30),Math.toRadians(0))
                     .build();
 
-            PPGTOSECONDSHOOT = follower.pathBuilder()
-                    .addPath(new BezierLine(
-                            new Pose(129.046,  73.470),
-                            new Pose( 94.391,  88.980)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+            PPGTOSECONDSHOOT = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(129.023, 83.245),
+                                    new Pose(86.285, 93.272)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(37))
+
                     .build();
 
-            SECONDSHOOTTOPGP = follower.pathBuilder()
-                    .addPath(new BezierCurve(
-                            new Pose( 94.391,  88.980),
-                            new Pose( 85.646,  51.930),
-                            new Pose(135.642,  58.311)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+            SECONDSHOOTTOPGP = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(86.285, 93.272),
+                                    new Pose(85.646, 51.930),
+                                    new Pose(135.642, 58.311)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(37), Math.toRadians(0))
+
                     .build();
 
-            PGPTOTHIRDSHOOT = follower.pathBuilder()
-                    .addPath(new BezierCurve(
-                            new Pose(135.642,  58.311),
-                            new Pose(116.291,  54.808),
-                            new Pose( 86.649,  82.099)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+            PGPTOTHIRDSHOOT = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(135.642, 58.311),
+                                    new Pose(116.291, 54.808),
+                                    new Pose(81.881, 88.298)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(37))
+
                     .build();
 
-            THIRDSHOOTTOGPP = follower.pathBuilder()
-                    .addPath(new BezierCurve(
-                            new Pose( 86.649,  82.099),
-                            new Pose( 81.603,  19.060),
-                            new Pose(134.358,  37.119)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+            THIRDSHOOTTOGPP = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(81.881, 88.298),
+                                    new Pose(81.603, 18.583),
+                                    new Pose(134.358, 37.119)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(37), Math.toRadians(6))
+
                     .build();
 
-            GPPTOLASTSHOOT = follower.pathBuilder()
-                    .addPath(new BezierLine(
-                            new Pose(134.358,  37.119),
-                            new Pose( 95.298,  88.417)
-                    ))
-                    .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+            GPPTOLASTSHOOT = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(134.358, 37.119),
+
+                                    new Pose(87.430, 95.093)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(6), Math.toRadians(37))
+
                     .build();
 
-            PARK = follower.pathBuilder()
-                    .addPath(new BezierLine(
-                            new Pose( 95.298,  88.417),
-                            new Pose( 99.020,  84.636)
-                    ))
-                    .setConstantHeadingInterpolation(Math.toRadians(45))
+            PARK = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(87.430, 95.093),
+
+                                    new Pose(86.384, 104.424)
+                            )
+                    ).setTangentHeadingInterpolation()
+
                     .build();
         }
     }
 
     private Paths paths;
 
-    // ===== shoot poses (endpoints of the shoot legs) =====
-    private static final Pose FIRST_SHOOT_POSE  = new Pose(102.728, 97.510, Math.toRadians(45));
-    private static final Pose SECOND_SHOOT_POSE = new Pose( 94.391, 88.980, Math.toRadians(45));
-    private static final Pose THIRD_SHOOT_POSE  = new Pose( 86.649, 82.099, Math.toRadians(45));
-    private static final Pose LAST_SHOOT_POSE   = new Pose( 95.298, 88.417, Math.toRadians(45));
+        // ===== state machine =====
+        private enum State {
+            START_TO_FIRST_SHOOT,
+            FIRST_SHOOT,
 
-    // ===== state machine =====
-    private enum State {
-        START_TO_FIRST_SHOOT,
-        FIRST_SHOOT,
+            FIRST_SHOOT_TO_PPG,
+            PPG_TO_SECOND_SHOOT,
+            SECOND_SHOOT,
 
-        FIRST_SHOOT_TO_PPG,
-        PPG_TO_SECOND_SHOOT,
-        SECOND_SHOOT,
+            SECOND_SHOOT_TO_PGP,
+            PGP_TO_THIRD_SHOOT,
+            THIRD_SHOOT,
 
-        SECOND_SHOOT_TO_PGP,
-        PGP_TO_THIRD_SHOOT,
-        THIRD_SHOOT,
+            THIRD_SHOOT_TO_GPP,
+            GPP_TO_LAST_SHOOT,
+            LAST_SHOOT,
 
-        THIRD_SHOOT_TO_GPP,
-        GPP_TO_LAST_SHOOT,
-        LAST_SHOOT,
-
-        PARK,
-        STOP
-    }
+            PARK,
+            STOP
+        }
 
     private State state = State.START_TO_FIRST_SHOOT;
     private final ElapsedTime opTimer = new ElapsedTime();
@@ -292,56 +262,10 @@ public class RedCloseTwelve extends LinearOpMode {
         for (int i = 2; i >= 0; i--) {
             if (colors[i] == want) { picked = i; break; }
         }
-        if (picked == -1) return;
-        if (picked == 0) {
-            robot.cycleCW();
-        } else if(picked == 1){
-            robot.cycleCCW();
-        }
+        if (picked == 1){robot.cycleCCW();}
+        else{robot.cycleCW();}
     }
 
-    /** Drive helper (robot-centric x/y + rx) */
-    private void setDrivePowers(double rotY, double rotX, double rx) {
-        rotX *= 1.1; // keep your teleop behavior
-
-        double denom = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1.0);
-
-        double fl = (rotY + rotX + rx) / denom;
-        double bl = (rotY - rotX + rx) / denom;
-        double fr = (rotY - rotX - rx) / denom;
-        double br = (rotY + rotX - rx) / denom;
-
-        robot.fl.setPower(fl);
-        robot.bl.setPower(bl);
-        robot.fr.setPower(fr);
-        robot.br.setPower(br);
-    }
-
-    /** Aimlock override while still calling follower.update() for localization. */
-    private void aimlockDriveToward(Pose targetPose, Double txOrNull) {
-        // Update pose estimate via follower's localizer (we call follower.update() in the loop)
-        Pose cur = follower.getPose();
-        double ex = targetPose.getX() - cur.getX();
-        double ey = targetPose.getY() - cur.getY();
-
-        // Field vector scaled
-        double vxField = Range.clip(AIMLOCK_KP_FIELD * ex, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
-        double vyField = Range.clip(AIMLOCK_KP_FIELD * ey, -AIMLOCK_MAX_DRIVE, AIMLOCK_MAX_DRIVE);
-
-        // Convert field -> robot frame using IMU heading
-        double botHeading = robot.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
-        double rotX = vxField * Math.cos(-botHeading) - vyField * Math.sin(-botHeading);
-        double rotY = vxField * Math.sin(-botHeading) + vyField * Math.cos(-botHeading);
-
-        // Rotation from tag (if visible)
-        double rx = 0.0;
-        if (txOrNull != null) {
-            rx = aimPidFromTx(txOrNull, Robot.AIM_OFFSET_RED);
-            rx = Range.clip(rx, -aimMaxTurn, aimMaxTurn);
-        }
-
-        setDrivePowers(rotY, rotX, rx);
-    }
 
     /** Shoot ONE ball using your pattern + OpenCV slot logic. */
     private void shootOne(int count) {
@@ -364,45 +288,44 @@ public class RedCloseTwelve extends LinearOpMode {
         }
 
         // if we can't find it, just fall back to "whatever" (don’t deadlock)
-        if (picked == 0) {
-            robot.cycleCW();
-        } else if(picked == 1){
-            robot.cycleCCW();
-        }
+        int targetCycle;
+        if (picked == -1) targetCycle = robot.cpos;
+        else targetCycle = (robot.cpos + picked + 1) % 3;
+
+        robot.setCycle(targetCycle);
 
         ElapsedTime t = new ElapsedTime();
         while (opModeIsActive() && t.seconds() < CYCLE_SETTLE) {
-            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
-            sleep(10);
+        }
+
+        // wait before feeding
+        t.reset();
+        while (opModeIsActive() && t.seconds() < FEED_DELAY) {
+            robot.outtake('r');
+            robot.intake.setPower(INTAKE_HALF);
+            robot.transferDown();
         }
 
         // transfer up (feed)
         t.reset();
         robot.transferUp();
         while (opModeIsActive() && t.seconds() < FEED_TIME) {
-            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
-            sleep(10);
         }
 
         // transfer down + spacing
         robot.transferDown();
         t.reset();
         while (opModeIsActive() && t.seconds() < DOWN_TIME) {
-            robot.updateCycle();
             robot.outtake('r');
             robot.intake.setPower(INTAKE_HALF);
-            sleep(10);
         }
     }
 
     private void shootThree() {
-        // small settle + heading catch-up (~300ms)
-        microAimAtSpeakerTag(0.10);
-
         shootOne(0);
         shootOne(1);
         shootOne(2);
@@ -415,18 +338,13 @@ public class RedCloseTwelve extends LinearOpMode {
      *
      * Intake always runs (half), flywheel always on, and we preselect the FIRST ball while moving.
      */
-    private void followToShoot(PathChain path, Pose shootPose) {
+    private void followToShoot(PathChain path) {
         follower.followPath(path, true);
-
-        boolean aimLock = false;
-        ElapsedTime aimLockTimer = new ElapsedTime();
-        resetAimPid();
 
         while (opModeIsActive() && follower.isBusy()) {
 
             // always update pedro (pose estimate)
             follower.update();
-            robot.updateCycle();
 
             // flywheel always on
             robot.outtake('r');
@@ -440,48 +358,14 @@ public class RedCloseTwelve extends LinearOpMode {
             // while moving to shoot: pre-select the first shot
             preSelectForShot(0);
 
-            // check tag
-            Double tx = getTxForTag(speakerTagIdRed);
-
-            if (!aimLock && tx != null) {
-                // FIRST time we see the tag: switch into aimlock override
-                aimLock = true;
-                resetAimPid();
-                aimLockTimer.reset();
-            }
-
-            if (aimLock) {
-                // If we lose the tag later, keep translation control but rotation = 0
-                aimlockDriveToward(shootPose, tx);
-
-                // stop condition: close enough OR timeout (so we never stall)
-                Pose cur = follower.getPose();
-                double dist = Math.hypot(shootPose.getX() - cur.getX(), shootPose.getY() - cur.getY());
-
-                if ((aimLockTimer.seconds() >= PREAIM_MIN_TIME && dist <= AIMLOCK_POS_TOL)
-                        || (aimLockTimer.seconds() >= AIMLOCK_TIMEOUT)) {
-                    // let pedro finish "busy" by continuing the loop;
-                    // but we can force stop driving now:
-                    setDrivePowers(0, 0, 0);
-                    break;
-                }
-            }
-
             telemetry.addData("state", state);
             telemetry.addData("pattern", pattern);
-            telemetry.addData("aimLock", aimLock ? "on" : "off");
-            telemetry.addData("tx", tx == null ? "null" : String.format("%.2f", tx));
             telemetry.update();
         }
-
-        // stop drivetrain at end of leg
-        setDrivePowers(0, 0, 0);
 
         // If Pedro is still "busy" for a moment, give it a couple updates to settle pose.
         for (int i = 0; i < 3 && opModeIsActive(); i++) {
             follower.update();
-            robot.updateCycle();
-            sleep(10);
         }
     }
 
@@ -491,7 +375,6 @@ public class RedCloseTwelve extends LinearOpMode {
 
         while (opModeIsActive() && follower.isBusy()) {
             follower.update();
-            robot.updateCycle();
             robot.outtake('r');
 
             // FULL intake on intake legs
@@ -513,7 +396,7 @@ public class RedCloseTwelve extends LinearOpMode {
         paths = new Paths(follower);
 
         // starting pose must match the first point in FROMSTARTTOFIRSTSHOOT
-        follower.setStartingPose(new Pose(123.974, 119.682, Math.toRadians(135)));
+        follower.setStartingPose(new Pose(122.781, 123.258, Math.toRadians(125)));
 
         limelight = robot.getLimelight();
         limelight.start();
@@ -524,9 +407,8 @@ public class RedCloseTwelve extends LinearOpMode {
         while (opModeInInit()) {
             pattern = readPatternFromLimelight(pattern);
             robot.setCycle(0);
-            robot.updateCycle();
             robot.transferDown();
-            robot.intake.setPower(0);
+            robot.intake.setPower(INTAKE_HALF);
 
             telemetry.addData("pattern(tag 21-23)", pattern);
             telemetry.addData("meaning", pattern == 21 ? "GPP" : (pattern == 22 ? "PGP" : "PPG"));
@@ -545,7 +427,7 @@ public class RedCloseTwelve extends LinearOpMode {
             switch (state) {
 
                 case START_TO_FIRST_SHOOT:
-                    followToShoot(paths.FROMSTARTTOFIRSTSHOOT, FIRST_SHOOT_POSE);
+                    followToShoot(paths.FROMSTARTTOFIRSTSHOOT);
                     state = State.FIRST_SHOOT;
                     break;
 
@@ -560,7 +442,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case PPG_TO_SECOND_SHOOT:
-                    followToShoot(paths.PPGTOSECONDSHOOT, SECOND_SHOOT_POSE);
+                    followToShoot(paths.PPGTOSECONDSHOOT);
                     state = State.SECOND_SHOOT;
                     break;
 
@@ -575,7 +457,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case PGP_TO_THIRD_SHOOT:
-                    followToShoot(paths.PGPTOTHIRDSHOOT, THIRD_SHOOT_POSE);
+                    followToShoot(paths.PGPTOTHIRDSHOOT);
                     state = State.THIRD_SHOOT;
                     break;
 
@@ -590,7 +472,7 @@ public class RedCloseTwelve extends LinearOpMode {
                     break;
 
                 case GPP_TO_LAST_SHOOT:
-                    followToShoot(paths.GPPTOLASTSHOOT, LAST_SHOOT_POSE);
+                    followToShoot(paths.GPPTOLASTSHOOT);
                     state = State.LAST_SHOOT;
                     break;
 
@@ -603,7 +485,6 @@ public class RedCloseTwelve extends LinearOpMode {
                     follower.followPath(paths.PARK, true);
                     while (opModeIsActive() && follower.isBusy()) {
                         follower.update();
-                        robot.updateCycle();
                         robot.outtake('r');
                         robot.intake.setPower(INTAKE_HALF);
                         telemetry.addData("state", state);
@@ -623,6 +504,5 @@ public class RedCloseTwelve extends LinearOpMode {
         robot.intake.setPower(0);
         robot.transferDown();
         robot.setCycle(0);
-        setDrivePowers(0, 0, 0);
     }
 }

@@ -44,14 +44,14 @@ public class Constants {
     public static ThreeWheelConstants localizerConstants = new ThreeWheelConstants()
             .forwardTicksToInches(0.00195)
             .strafeTicksToInches(0.00295)
-            .turnTicksToInches(0.00193)
+            .turnTicksToInches(0.00377)
             .leftPodY(7.5)
             .rightPodY(-7.5)
             .strafePodX(-7.25)
             .leftEncoder_HardwareMapName("bl")
             .rightEncoder_HardwareMapName("fl")
             .strafeEncoder_HardwareMapName("fr")
-            .leftEncoderDirection(Encoder.FORWARD)
+            .leftEncoderDirection(Encoder.REVERSE)
             .rightEncoderDirection(Encoder.FORWARD)
             .strafeEncoderDirection(Encoder.REVERSE);
 
